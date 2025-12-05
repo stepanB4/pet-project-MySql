@@ -1,16 +1,8 @@
-# This is a sample Python script.
-
-# Press Shift+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
-
-
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press Ctrl+F8 to toggle the breakpoint.
-
-
-# Press the green button in the gutter to run the script.
-if __name__ == '__main__':
-    print_hi('PyCharm')
-
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
+with open('requirements.txt', 'w') as f:
+    f.write("""fastapi==0.104.1
+uvicorn==0.24.0
+sqlalchemy==2.0.23
+jinja2==3.1.2
+python-multipart==0.0.6
+pydantic==2.5.0
+""")

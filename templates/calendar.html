@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Календарь с событиями</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .calendar {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            overflow: hidden;
+            max-width: 1000px;
+            margin: 2rem auto;
+        }
+
+        .calendar-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1.5rem;
+            text-align: center;
+        }
+
+        .calendar-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .calendar-nav button {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .calendar-nav button:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .calendar-weekdays {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            background: #f1f5f9;
+            padding: 0.75rem 0;
+            font-weight: 600;
+            color: #475569;
+        }
+
+        .calendar-days {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 1px;
+            background: #e2e8f0;
+        }
+
+        .calendar-day {
+            background: white;
+            padding: 1rem 0.5rem;
+            min-height: 120px;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .calendar-day:hover {
+            background: #f8fafc;
+            transform: scale(1.02);
+            z-index: 1;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .calendar-day.other-month {
+            color: #cbd5e1;
+            background: #f8fafc;
+        }
+
+        .calendar-day.today {
+            background: #dbeafe;
+            border: 2px solid #3b82f6;
+        }
+
+        .calendar-day.has-event::after {
+            content: '';
+            position: absolute;
+            bottom: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 6px;
+            height: 6px;
+            background: #3b82f6;
+            border-radius: 50%;
+        }
+
+        .calendar-event {
+            font-size: 0.75rem;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-top: 4px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            cursor: pointer;
+        }
+
+        .day-number {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 6px;
+            color: white;
+            font-weight: 500;
+            z-index: 1000;
+            transition: all 0.3s;
+        }
+
+        .notification.success {
+            background: #10b981;
+        }
+
+        .notification.error {
+            background: #ef4444;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1001;
+        }
+
+        .modal-content {
+            background: white;
+            margin: 5% auto;
+            padding: 2rem;
+            border-radius: 12px;
+            max-width: 500px;
+            width: 90%;
+        }
+    </style>
+</head>
+<body>
+    <div class="calendar">
+        <div class="calendar-header">
+            <div class="calendar-nav">
+                <button id="prev-month">‹</button>
+                <h2 id="current-month">
+                    {% set month_names = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'] %}
+                    {{ month_names[current_month - 1] }} {{ current_year }}
+                </h2>
+                <button id="next-month">›</button>
+            </div>
+            <button id="refresh-events" style="background: rgba(255,255,255,0.3); border: none; color: white; padding: 8px 16px; border-radius: 6px; cursor: pointer;">
+                🔄 Обновить события
+            </button>
+            <button id="add-event" style="background: rgba(255,255,255,0.3); border: none; color: white; padding: 8px 16px; border-radius: 6px; cursor: pointer; margin-left: 10px;">
+                ➕ Добавить событие
+            </button>
+        </div>
+
+        <div class="calendar-weekdays">
+            <div>Пн</div>
+            <div>Вт</div>
+            <div>Ср</div>
+            <div>Чт</div>
+            <div>Пт</div>
+            <div>Сб</div>
+            <div>Вс</div>
+        </div>
+
+        <div class="calendar-days" id="calendar-days">
+            <!-- Days will be populated by JavaScript -->
+        </div>
+    </div>
+
+    <!-- Modal for adding events -->
+    <div id="event-modal" class="modal">
+        <div class="modal-content">
+            <h3 class="text-xl font-bold mb-4">Добавить событие</h3>
+            <form id="event-form">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium mb-2">Название события</label>
+                    <input type="text" id="event-title" required class="w-full p-2 border rounded">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium mb-2">Описание</label>
+                    <textarea id="event-description" class="w-full p-2 border rounded"></textarea>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium mb-2">Дата</label>
+                    <input type="date" id="event-date" required class="w-full p-2 border rounded">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium mb-2">Тип события</label>
+                    <select id="event-type" class="w-full p-2 border rounded">
+                        <option value="normal">Обычное</option>
+                        <option value="important">Важное</option>
+                        <option value="meeting">Встреча</option>
+                        <option value="personal">Личное</option>
+                    </select>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium mb-2">Цвет</label>
+                    <input type="color" id="event-color" value="#3b82f6" class="w-full p-1 border rounded">
+                </div>
+                <div class="flex gap-2">
+                    <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded">Сохранить</button>
+                    <button type="button" id="close-modal" class="bg-gray-500 text-white px-4 py-2 rounded">Отмена</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Initial data from Jinja2
+        const initialData = {
+            currentYear: {{ current_year }},
+            currentMonth: {{ current_month }},
+            events: {{ events | tojson }}
+        };
+
+        class CalendarManager {
+            constructor() {
+                this.currentDate = new Date(initialData.currentYear, initialData.currentMonth - 1, 1);
+                this.events = initialData.events;
+                this.init();
+            }
+
+            init() {
+                this.bindEvents();
+                this.renderCalendar();
+            }
+
+            bindEvents() {
+                document.getElementById('prev-month').addEventListener('click', () => {
+                    this.currentDate.setMonth(this.currentDate.getMonth() - 1);
+                    this.loadEventsForCurrentMonth();
+                });
+
+                document.getElementById('next-month').addEventListener('click', () => {
+                    this.currentDate.setMonth(this.currentDate.getMonth() + 1);
+                    this.loadEventsForCurrentMonth();
+                });
+
+                document.getElementById('refresh-events').addEventListener('click', () => {
+                    this.loadEventsForCurrentMonth(true);
+                });
+
+                document.getElementById('add-event').addEventListener('click', () => {
+                    this.openAddEventModal();
+                });
+
+                document.getElementById('close-modal').addEventListener('click', () => {
+                    this.closeModal();
+                });
+
+                document.getElementById('event-form').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.saveEvent();
+                });
+            }
+
+            async loadEventsForCurrentMonth(forceRefresh = false) {
+                this.showLoading();
+
+                try {
+                    const year = this.currentDate.getFullYear();
+                    const month = this.currentDate.getMonth() + 1;
+
+                    const response = await fetch(`/api/events/${year}/${month}`);
+                    if (!response.ok) throw new Error('Ошибка загрузки событий');
+
+                    const events = await response.json();
+                    this.events = this.groupEventsByDate(events);
+                    this.renderCalendar();
+
+                    this.showNotification('События загружены', 'success');
+                } catch (error) {
+                    console.error('Ошибка загрузки событий:', error);
+                    this.showNotification('Ошибка загрузки событий', 'error');
+                } finally {
+                    this.hideLoading();
+                }
+            }
+
+            groupEventsByDate(events) {
+                const grouped = {};
+                events.forEach(event => {
+                    const dateKey = event.event_date;
+                    if (!grouped[dateKey]) {
+                        grouped[dateKey] = [];
+                    }
+                    grouped[dateKey].push(event);
+                });
+                return grouped;
+            }
+
+            renderCalendar() {
+                const calendarDays = document.getElementById('calendar-days');
+                const currentMonthElement = document.getElementById('current-month');
+
+                // Update month title
+                const months = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+                               'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+                currentMonthElement.textContent = `${months[this.currentDate.getMonth()]} ${this.currentDate.getFullYear()}`;
+
+                // Clear previous days
+                calendarDays.innerHTML = '';
+
+                const firstDay = new Date(this.currentDate.getFullYear(), this.currentDate.getMonth(), 1);
+                const lastDay = new Date(this.currentDate.getFullYear(), this.currentDate.getMonth() + 1, 0);
+                const startDay = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
+                const daysInMonth = lastDay.getDate();
+
+                // Previous month days
+                const prevMonthLastDay = new Date(this.currentDate.getFullYear(), this.currentDate.getMonth(), 0).getDate();
+                for (let i = startDay - 1; i >= 0; i--) {
+                    const dayElement = this.createDayElement(prevMonthLastDay - i, true);
+                    calendarDays.appendChild(dayElement);
+                }
+
+                // Current month days
+                const today = new Date();
+                for (let i = 1; i <= daysInMonth; i++) {
+                    const dateKey = `${this.currentDate.getFullYear()}-${String(this.currentDate.getMonth() + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+                    const isToday = this.currentDate.getMonth() === today.getMonth() &&
+                                   this.currentDate.getFullYear() === today.getFullYear() &&
+                                   i === today.getDate();
+
+                    const dayElement = this.createDayElement(i, false, isToday, dateKey);
+                    calendarDays.appendChild(dayElement);
+                }
+
+                // Next month days
+                const totalCells = 42;
+                const nextMonthDays = totalCells - (startDay + daysInMonth);
+                for (let i = 1; i <= nextMonthDays; i++) {
+                    const dayElement = this.createDayElement(i, true);
+                    calendarDays.appendChild(dayElement);
+                }
+            }
+
+            createDayElement(dayNumber, isOtherMonth = false, isToday = false, dateKey = null) {
+                const dayElement = document.createElement('div');
+
+                let classes = 'calendar-day';
+                if (isOtherMonth) classes += ' other-month';
+                if (isToday) classes += ' today';
+                if (dateKey && this.events[dateKey]) classes += ' has-event';
+
+                dayElement.className = classes;
+                dayElement.innerHTML = `<div class="day-number">${dayNumber}</div>`;
+
+                // Add events
+                if (dateKey && this.events[dateKey]) {
+                    this.events[dateKey].forEach(event => {
+                        const eventElement = document.createElement('div');
+                        eventElement.className = 'calendar-event';
+                        eventElement.textContent = event.title;
+                        eventElement.title = event.description || event.title;
+                        eventElement.style.backgroundColor = event.color;
+                        eventElement.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            this.showEventDetails(event);
+                        });
+                        dayElement.appendChild(eventElement);
+                    });
+                }
+
+                // Day click handler
+                if (!isOtherMonth && dateKey) {
+                    dayElement.addEventListener('click', () => {
+                        this.openAddEventModal(dateKey);
+                    });
+                }
+
+                return dayElement;
+            }
+
+            openAddEventModal(prefilledDate = null) {
+                const modal = document.getElementById('event-modal');
+                const dateInput = document.getElementById('event-date');
+
+                if (prefilledDate) {
+                    dateInput.value = prefilledDate;
+                } else {
+                    dateInput.value = '';
+                }
+
+                document.getElementById('event-title').value = '';
+                document.getElementById('event-description').value = '';
+                document.getElementById('event-type').value = 'normal';
+                document.getElementById('event-color').value = '#3b82f6';
+
+                modal.style.display = 'block';
+            }
+
+            closeModal() {
+                document.getElementById('event-modal').style.display = 'none';
+            }
+
+            async saveEvent() {
+                const eventData = {
+                    title: document.getElementById('event-title').value,
+                    description: document.getElementById('event-description').value,
+                    event_date: document.getElementById('event-date').value,
+                    event_type: document.getElementById('event-type').value,
+                    color: document.getElementById('event-color').value
+                };
+
+                try {
+                    const response = await fetch('/api/events/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(eventData)
+                    });
+
+                    if (!response.ok) throw new Error('Ошибка сохранения события');
+
+                    this.closeModal();
+                    await this.loadEventsForCurrentMonth(true);
+                    this.showNotification('Событие добавлено', 'success');
+
+                } catch (error) {
+                    console.error('Ошибка сохранения события:', error);
+                    this.showNotification('Ошибка сохранения события', 'error');
+                }
+            }
+
+            showEventDetails(event) {
+                if (confirm(`Удалить событие "${event.title}"?`)) {
+                    this.deleteEvent(event.id);
+                }
+            }
+
+            async deleteEvent(eventId) {
+                try {
+                    const response = await fetch(`/api/events/${eventId}`, {
+                        method: 'DELETE'
+                    });
+
+                    if (!response.ok) throw new Error('Ошибка удаления события');
+
+                    await this.loadEventsForCurrentMonth(true);
+                    this.showNotification('Событие удалено', 'success');
+
+                } catch (error) {
+                    console.error('Ошибка удаления события:', error);
+                    this.showNotification('Ошибка удаления события', 'error');
+                }
+            }
+
+            showLoading() {
+                document.getElementById('calendar-days').classList.add('loading');
+            }
+
+            hideLoading() {
+                document.getElementById('calendar-days').classList.remove('loading');
+            }
+
+            showNotification(message, type = 'success') {
+                const notification = document.createElement('div');
+                notification.className = `notification ${type}`;
+                notification.textContent = message;
+
+                document.body.appendChild(notification);
+
+                setTimeout(() => {
+                    notification.remove();
+                }, 3000);
+            }
+        }
+
+        // Initialize calendar
+        const calendar = new CalendarManager();
+    </script>
+</body>
+</html>
