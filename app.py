@@ -1,6 +1,6 @@
 
-from fastapi import FastAPI, HTTPException, Request, Form
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi import FastAPI, HTTPException, Request, Depends, Form
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, EmailStr
 from datetime import date, datetime, timedelta
@@ -8,18 +8,20 @@ from typing import List, Optional, Dict
 import csv
 import io
 import calendar
-import json
 
 app = FastAPI(title="Booking System")
 templates = Jinja2Templates(directory="templates")
 
+RUSSIAN_MONTHS = {
+    1: "Январь", 2: "Февраль", 3: "Март", 4: "Апрель",
+    5: "Май", 6: "Июнь", 7: "Июль", 8: "Август",
+    9: "Сентябрь", 10: "Октябрь", 11: "Ноябрь", 12: "Декабрь"
+}
 
-# Кастомный JSON encoder для обработки объектов date
-class DateEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, date):
-            return obj.isoformat()
-        return super().default(obj)
+
+def get_russian_month_name(month_number: int) -> str:
+    """Возвращает название месяца на русском"""
+    return RUSSIAN_MONTHS.get(month_number, "Неизвестный месяц")
 
 
 # Хранилище данных (в памяти)
@@ -27,7 +29,7 @@ class DataStorage:
     def __init__(self):
         self.slots = []
         self.bookings = []
-        self.admins = {"admin": "admin123"}
+        self.admins = {"admin": "admin123"}  # Простая аутентификация
         self.next_slot_id = 1
         self.next_booking_id = 1
         self._initialize_sample_data()
@@ -63,6 +65,19 @@ class DataStorage:
                 "is_available": True
             }
             self.create_slot(slot_data)
+
+        # Создаем несколько демо-бронирований
+        demo_slots = [slot for slot in self.slots if slot["is_available"]][:3]
+        for i, slot in enumerate(demo_slots):
+            booking_data = {
+                "slot_id": slot["id"],
+                "full_name": f"Преподаватель {i + 1}",
+                "group": f"Группа {i + 1}",
+                "event_type": "Лекция",
+                "previous_classroom": f"Старая аудитория {i + 1}",
+                "email": f"teacher{i + 1}@university.edu"
+            }
+            self.create_booking(booking_data)
 
     def create_slot(self, slot_data: dict):
         slot = {
@@ -116,7 +131,7 @@ class DataStorage:
             "event_type": booking_data["event_type"],
             "previous_classroom": booking_data.get("previous_classroom"),
             "email": booking_data["email"],
-            "status": "pending",
+            "status": "pending",  # pending, confirmed
             "created_at": datetime.now()
         }
 
@@ -136,7 +151,6 @@ class DataStorage:
         booking = next((b for b in self.bookings if b["id"] == booking_id), None)
         if booking:
             booking["status"] = "confirmed"
-            # Здесь должна быть отправка email
             print(f"Отправка email на {booking['email']}: Бронирование подтверждено")
             return booking
         return None
@@ -147,16 +161,6 @@ class DataStorage:
                 booking["status"] = "confirmed"
                 print(f"Отправка email на {booking['email']}: Бронирование подтверждено")
         return True
-
-    def delete_slot(self, slot_id: int):
-        slot = self.get_slot_by_id(slot_id)
-        if slot:
-            # Проверяем, нет ли активных бронирований
-            active_booking = next((b for b in self.bookings if b["slot_id"] == slot_id), None)
-            if not active_booking:
-                self.slots.remove(slot)
-                return True
-        return False
 
 
 # Инициализация хранилища
@@ -200,6 +204,11 @@ def get_lesson_time(lesson_number: int) -> str:
     return lessons.get(lesson_number, "Неизвестно")
 
 
+def get_week_dates(start_date: date):
+    """Возвращает даты недели начиная с указанной даты"""
+    return [start_date + timedelta(days=i) for i in range(7)]
+
+
 def get_month_calendar(year: int, month: int):
     """Генерирует календарь на месяц"""
     cal = calendar.Calendar(firstweekday=0)  # Понедельник первый день недели
@@ -216,7 +225,7 @@ def get_month_calendar(year: int, month: int):
                 day_date = date(year, month, day)
                 week_data.append({
                     "day": day,
-                    "date": day_date.isoformat(),  # Используем строку вместо объекта date
+                    "date": day_date.isoformat(),
                     "is_today": day_date == date.today(),
                     "is_past": day_date < date.today(),
                     "has_slots": False
@@ -224,34 +233,6 @@ def get_month_calendar(year: int, month: int):
         calendar_data.append(week_data)
 
     return calendar_data
-
-
-def get_week_dates(start_date: date):
-    """Возвращает даты недели начиная с указанной даты"""
-    return [start_date + timedelta(days=i) for i in range(7)]
-
-
-# Вспомогательная функция для преобразования данных календаря в JSON-совместимый формат
-def prepare_calendar_for_json(calendar_data):
-    """Преобразует календарь в формат, который можно сериализовать в JSON"""
-    prepared_calendar = []
-    for week in calendar_data:
-        prepared_week = []
-        for day_data in week:
-            if day_data:
-                prepared_day = {
-                    "day": day_data["day"],
-                    "date": day_data["date"],  # Уже строка
-                    "is_today": day_data["is_today"],
-                    "is_past": day_data["is_past"],
-                    "has_slots": day_data.get("has_slots", False),
-                    "slots_count": day_data.get("slots_count", 0)
-                }
-                prepared_week.append(prepared_day)
-            else:
-                prepared_week.append(None)
-        prepared_calendar.append(prepared_week)
-    return prepared_calendar
 
 
 # Роуты для преподавателя
@@ -271,16 +252,15 @@ async def teacher_calendar(request: Request):
                 day_data["has_slots"] = True
                 day_data["slots_count"] = month_slots[day_data["date"]]
 
-    # Подготавливаем календарь для передачи в шаблон
-    prepared_calendar = prepare_calendar_for_json(month_calendar)
+    russian_month_name = get_russian_month_name(today.month)
 
-    return templates.TemplateResponse("teacher_calendar.html", {
+    return templates.TemplateResponse("teacher_calendar1.html", {
         "request": request,
-        "today": today.isoformat(),  # Используем строку
+        "today": today.isoformat(),
         "current_year": today.year,
         "current_month": today.month,
-        "month_name": today.strftime("%B"),
-        "calendar": prepared_calendar  # Уже подготовленный для JSON
+        "month_name": russian_month_name,
+        "calendar": month_calendar
     })
 
 
@@ -297,13 +277,11 @@ async def get_calendar(year: int, month: int):
                 day_data["has_slots"] = True
                 day_data["slots_count"] = month_slots[day_data["date"]]
 
-    prepared_calendar = prepare_calendar_for_json(month_calendar)
-
     return {
-        "calendar": prepared_calendar,
+        "calendar": month_calendar,
         "year": year,
         "month": month,
-        "month_name": date(year, month, 1).strftime("%B")
+        "month_name": get_russian_month_name(month)
     }
 
 
@@ -331,7 +309,7 @@ async def get_slots_by_date(slot_date: date):
     for slot in slots:
         result.append({
             "id": slot["id"],
-            "date": slot["date"].isoformat(),  # Преобразуем в строку
+            "date": slot["date"].isoformat(),
             "lesson_number": slot["lesson_number"],
             "classroom": slot["classroom"],
             "building": slot["building"],
@@ -381,7 +359,7 @@ async def create_booking(booking: BookingCreate):
     return {"message": "Бронирование создано", "booking_id": created_booking["id"]}
 
 
-# Роуты для администратора
+# Роуты для администратора (из кода 1)
 @app.get("/admin/login", response_class=HTMLResponse)
 async def admin_login_page(request: Request):
     """Страница входа для администратора"""
@@ -408,38 +386,24 @@ async def admin_dashboard(request: Request):
         slot = storage.get_slot_by_id(booking["slot_id"])
         if slot:
             booking["slot_info"] = {
-                "date": slot["date"].isoformat(),
+                "date": slot["date"],
                 "lesson_time": get_lesson_time(slot["lesson_number"]),
                 "classroom": slot["classroom"],
                 "building": slot["building"]
             }
 
-    # Подготавливаем слоты для отображения
-    prepared_slots = []
-    for slot in storage.slots:
-        prepared_slots.append({
-            "id": slot["id"],
-            "date": slot["date"].isoformat(),
-            "lesson_number": slot["lesson_number"],
-            "classroom": slot["classroom"],
-            "building": slot["building"],
-            "is_available": slot["is_available"]
-        })
-
     return templates.TemplateResponse("admin_dashboard.html", {
         "request": request,
         "pending_bookings": pending_bookings,
         "confirmed_bookings": confirmed_bookings,
-        "slots": prepared_slots
+        "slots": storage.slots
     })
 
 
 @app.post("/admin/slots/")
 async def create_slot(slot: SlotCreate):
     """Создать новый слот"""
-    slot_dict = slot.dict()
-    slot_dict["is_available"] = True
-    created_slot = storage.create_slot(slot_dict)
+    created_slot = storage.create_slot(slot.dict())
     return {"message": "Слот создан", "slot_id": created_slot["id"]}
 
 
@@ -457,7 +421,7 @@ async def upload_slots_csv(file: bytes = Form(...)):
                 "lesson_number": int(row['lesson_number']),
                 "classroom": row['classroom'],
                 "building": row['building'],
-                                "is_available": True
+                "is_available": True
             }
             storage.create_slot(slot_data)
             created_count += 1
@@ -490,7 +454,7 @@ async def export_bookings_csv():
 
     output = io.StringIO()
     fieldnames = ['ID', 'ФИО', 'Группа', 'Мероприятие', 'Предыдущая аудитория',
-                  'Email', 'Дата', 'Время', 'Аудитория', 'Корпус', 'Статус', 'Дата создания']
+                  'Email', 'Дата', 'Время', 'Аудитория', 'Корпус']
     writer = csv.DictWriter(output, fieldnames=fieldnames)
     writer.writeheader()
 
@@ -507,34 +471,11 @@ async def export_bookings_csv():
                 'Дата': slot['date'],
                 'Время': get_lesson_time(slot['lesson_number']),
                 'Аудитория': slot['classroom'],
-                'Корпус': slot['building'],
-                'Статус': booking['status'],
-                'Дата создания': booking['created_at'].strftime("%Y-%m-%d %H:%M:%S") if booking['created_at'] else ""
+                'Корпус': slot['building']
             })
 
     response = JSONResponse(content={"csv": output.getvalue()})
-    response.headers["Content-Disposition"] = f"attachment; filename=bookings_{date.today()}.csv"
     return response
-
-
-@app.delete("/admin/slots/{slot_id}")
-async def delete_slot(slot_id: int):
-    """Удалить слот"""
-    success = storage.delete_slot(slot_id)
-    if not success:
-        raise HTTPException(status_code=400, detail="Невозможно удалить слот. Возможно, есть активное бронирование.")
-    return {"message": "Слот удален"}
-
-
-# Health check
-@app.get("/health")
-async def health_check():
-    return {
-        "status": "healthy",
-        "slots_count": len(storage.slots),
-        "bookings_count": len(storage.bookings),
-        "storage_type": "in_memory"
-    }
 
 
 if __name__ == "__main__":

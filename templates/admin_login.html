@@ -3,432 +3,73 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Панель администратора</title>
+    <title>Вход для администратора</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        // Вспомогательная функция для форматирования даты из строки ISO
-        function formatDateFromString(dateString) {
-            if (!dateString) return '';
-            const date = new Date(dateString);
-            return date.toLocaleDateString('ru-RU', {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric'
-            });
-        }
-
-        // Вспомогательная функция для получения времени урока
-        function getLessonTimeFromNumber(lessonNumber) {
-            const lessons = {
-                1: "8:30-10:05",
-                2: "10:15-11:50",
-                3: "12:00-13:35",
-                4: "13:50-15:25",
-                5: "15:40-17:15",
-                6: "17:25-19:00",
-                7: "19:10-20:45"
-            };
-            return lessons[lessonNumber] || "Неизвестно";
-        }
-    </script>
 </head>
-<body class="bg-gray-50">
-    <div class="container mx-auto px-4 py-8">
-        <!-- Шапка -->
-        <header class="bg-white shadow rounded-lg p-6 mb-6">
-            <div class="flex justify-between items-center">
-                <h1 class="text-2xl font-bold text-gray-800">Панель администратора</h1>
-                <div class="space-x-4">
-                    <a href="/" class="text-blue-600 hover:text-blue-800">Бронирование</a>
-                    <button onclick="logout()" class="text-red-600 hover:text-red-800">Выйти</button>
-                </div>
-            </div>
-        </header>
-
-        <!-- Навигация -->
-        <div class="bg-white shadow rounded-lg p-4 mb-6">
-            <nav class="flex space-x-4">
-                <button onclick="showSection('bookings')" class="px-4 py-2 rounded-md font-medium bg-blue-100 text-blue-800">
-                    Бронирования
-                </button>
-                <button onclick="showSection('slots')" class="px-4 py-2 rounded-md font-medium text-gray-600 hover:text-gray-900">
-                    Управление слотами
-                </button>
-                <button onclick="showSection('add-slot')" class="px-4 py-2 rounded-md font-medium text-gray-600 hover:text-gray-900">
-                    Добавить слот
-                </button>
-            </nav>
+<body class="bg-gray-50 min-h-screen flex items-center justify-center">
+    <div class="max-w-md w-full space-y-8 p-8">
+        <div>
+            <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
+                Вход для администратора
+            </h2>
         </div>
-
-        <!-- Секция бронирований -->
-        <div id="bookings-section" class="space-y-6">
-            <!-- Ожидающие подтверждения -->
-            <div class="bg-white shadow rounded-lg p-6">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-xl font-semibold">Ожидающие подтверждения ({{ pending_bookings|length }})</h2>
-                    {% if pending_bookings %}
-                    <button onclick="confirmAllBookings()" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
-                        Подтвердить все
-                    </button>
-                    {% endif %}
+        <form class="mt-8 space-y-6" id="login-form">
+            <div class="rounded-md shadow-sm -space-y-px">
+                <div>
+                    <label for="username" class="sr-only">Логин</label>
+                    <input id="username" name="username" type="text" required
+                           class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                           placeholder="Логин">
                 </div>
-
-                {% if not pending_bookings %}
-                <p class="text-gray-500 text-center py-4">Нет бронирований, ожидающих подтверждения</p>
-                {% else %}
-                <div class="space-y-4">
-                    {% for booking in pending_bookings %}
-                    <div class="border border-gray-200 rounded-lg p-4">
-                        <div class="flex justify-between items-start">
-                            <div class="space-y-2">
-                                <h3 class="font-semibold">{{ booking.full_name }}</h3>
-                                <div class="text-sm text-gray-600">
-                                    <div>Группа: {{ booking.group }}</div>
-                                    <div>Мероприятие: {{ booking.event_type }}</div>
-                                    <div>Email: {{ booking.email }}</div>
-                                    {% if booking.previous_classroom %}
-                                    <div>Предыдущая аудитория: {{ booking.previous_classroom }}</div>
-                                    {% endif %}
-                                    <div class="mt-2 font-medium">
-                                        <script>
-                                            document.write(formatDateFromString('{{ booking.slot_info.date }}'));
-                                        </script>,
-                                        {{ booking.slot_info.lesson_time }},
-                                        {{ booking.slot_info.classroom }},
-                                        {{ booking.slot_info.building }}
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="space-x-2">
-                                <button onclick="confirmBooking({{ booking.id }})"
-                                        class="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700">
-                                    Подтвердить
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
+                <div>
+                    <label for="password" class="sr-only">Пароль</label>
+                    <input id="password" name="password" type="password" required
+                           class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                           placeholder="Пароль">
                 </div>
-                {% endif %}
             </div>
 
-            <!-- Подтвержденные бронирования -->
-            <div class="bg-white shadow rounded-lg p-6">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-xl font-semibold">Подтвержденные бронирования ({{ confirmed_bookings|length }})</h2>
-                    {% if confirmed_bookings %}
-                    <button onclick="exportToCSV()" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
-                        Экспорт в CSV
-                    </button>
-                    {% endif %}
-                </div>
-
-                {% if not confirmed_bookings %}
-                <p class="text-gray-500 text-center py-4">Нет подтвержденных бронирований</p>
-                {% else %}
-                <div class="space-y-4">
-                    {% for booking in confirmed_bookings %}
-                    <div class="border border-green-200 bg-green-50 rounded-lg p-4">
-                        <div class="space-y-2">
-                            <div class="flex justify-between">
-                                <h3 class="font-semibold">{{ booking.full_name }}</h3>
-                                <span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">Подтверждено</span>
-                            </div>
-                            <div class="text-sm text-gray-600">
-                                <div>Группа: {{ booking.group }}</div>
-                                <div>Мероприятие: {{ booking.event_type }}</div>
-                                <div>Email: {{ booking.email }}</div>
-                                {% if booking.previous_classroom %}
-                                <div>Предыдущая аудитория: {{ booking.previous_classroom }}</div>
-                                {% endif %}
-                                <div class="mt-2 font-medium">
-                                    <script>
-                                        document.write(formatDateFromString('{{ booking.slot_info.date }}'));
-                                    </script>,
-                                    {{ booking.slot_info.lesson_time }},
-                                    {{ booking.slot_info.classroom }},
-                                    {{ booking.slot_info.building }}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% endif %}
-            </div>
-        </div>
-
-        <!-- Секция управления слотами -->
-        <div id="slots-section" class="hidden bg-white shadow rounded-lg p-6">
-            <h2 class="text-xl font-semibold mb-4">Управление слотами</h2>
-
-            <!-- Загрузка CSV -->
-            <div class="mb-6 p-4 border border-gray-200 rounded-lg">
-                <h3 class="font-semibold mb-2">Загрузить слоты из CSV</h3>
-                <form id="upload-csv-form" class="flex gap-4">
-                    <input type="file" id="csv-file" accept=".csv" class="flex-1" required>
-                    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-                        Загрузить
-                    </button>
-                </form>
-                <p class="text-sm text-gray-500 mt-2">
-                    Формат CSV: date,lesson_number,classroom,building
-                </p>
-            </div>
-
-            <!-- Список слотов -->
-            <div class="space-y-4">
-                {% for slot in slots %}
-                <div class="border border-gray-200 rounded-lg p-4">
-                    <div class="flex justify-between items-center">
-                        <div class="space-y-1">
-                            <div class="font-semibold">
-                                <script>
-                                    document.write(formatDateFromString('{{ slot.date }}') + ' - ');
-                                    document.write(getLessonTimeFromNumber({{ slot.lesson_number }}));
-                                </script>
-                            </div>
-                            <div class="text-sm text-gray-600">
-                                Аудитория: {{ slot.classroom }}, Корпус: {{ slot.building }}
-                            </div>
-                            <div class="text-sm">
-                                Статус:
-                                <span class="{% if slot.is_available %}text-green-600{% else %}text-red-600{% endif %}">
-                                    {{ 'Свободен' if slot.is_available else 'Занят' }}
-                                </span>
-                            </div>
-                        </div>
-                        <div class="space-x-2">
-                            <button onclick="deleteSlot({{ slot.id }})"
-                                    class="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700"
-                                    {% if not slot.is_available %}disabled{% endif %}>
-                                Удалить
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-
-        <!-- Секция добавления слота -->
-        <div id="add-slot-section" class="hidden bg-white shadow rounded-lg p-6">
-            <h2 class="text-xl font-semibold mb-4">Добавить новый слот</h2>
-            <form id="add-slot-form" class="space-y-4 max-w-md">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Дата</label>
-                    <input type="date" name="date" required
-                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Номер пары</label>
-                    <select name="lesson_number" required
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="1">1 пара (8:30-10:05)</option>
-                        <option value="2">2 пара (10:15-11:50)</option>
-                        <option value="3">3 пара (12:00-13:35)</option>
-                        <option value="4">4 пара (13:50-15:25)</option>
-                        <option value="5">5 пара (15:40-17:15)</option>
-                        <option value="6">6 пара (17:25-19:00)</option>
-                        <option value="7">7 пара (19:10-20:45)</option>
-                    </select>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Аудитория</label>
-                    <input type="text" name="classroom" required
-                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Корпус</label>
-                    <select name="building" required
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="ГЗ">ГЗ</option>
-                        <option value="УЛК">УЛК</option>
-                        <option value="Энерго">Энерго</option>
-                        <option value="СМ">СМ</option>
-                    </select>
-                </div>
-
-                <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
-                    Добавить слот
+            <div>
+                <button type="submit" class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    Войти
                 </button>
-            </form>
-        </div>
+            </div>
+
+            <div class="text-center">
+                <a href="/" class="text-blue-600 hover:text-blue-500 text-sm">
+                    ← Вернуться к бронированию
+                </a>
+            </div>
+        </form>
     </div>
 
     <script>
-        // Навигация по секциям
-        function showSection(sectionName) {
-            // Скрываем все секции
-            document.getElementById('bookings-section').classList.add('hidden');
-            document.getElementById('slots-section').classList.add('hidden');
-            document.getElementById('add-slot-section').classList.add('hidden');
-
-            // Показываем нужную секцию
-            document.getElementById(sectionName + '-section').classList.remove('hidden');
-
-            // Обновляем активную кнопку навигации
-            document.querySelectorAll('nav button').forEach(btn => {
-                btn.classList.remove('bg-blue-100', 'text-blue-800');
-                btn.classList.add('text-gray-600', 'hover:text-gray-900');
-            });
-            event.target.classList.add('bg-blue-100', 'text-blue-800');
-            event.target.classList.remove('text-gray-600', 'hover:text-gray-900');
-        }
-
-        // Подтверждение бронирования
-        async function confirmBooking(bookingId) {
-            try {
-                const response = await fetch(`/admin/bookings/${bookingId}/confirm`, {
-                    method: 'POST'
-                });
-
-                if (response.ok) {
-                    alert('Бронирование подтверждено');
-                    location.reload();
-                } else {
-                    alert('Ошибка подтверждения');
-                }
-            } catch (error) {
-                alert('Ошибка сети');
-            }
-        }
-
-        // Подтверждение всех бронирований
-        async function confirmAllBookings() {
-            if (!confirm('Подтвердить все бронирования?')) return;
-
-            try {
-                const response = await fetch('/admin/bookings/confirm-all', {
-                    method: 'POST'
-                });
-
-                if (response.ok) {
-                    alert('Все бронирования подтверждены');
-                    location.reload();
-                } else {
-                    alert('Ошибка подтверждения');
-                }
-            } catch (error) {
-                alert('Ошибка сети');
-            }
-        }
-
-        // Экспорт в CSV
-        async function exportToCSV() {
-            try {
-                const response = await fetch('/admin/bookings/export-csv');
-                const data = await response.json();
-
-                // Создаем и скачиваем файл
-                const blob = new Blob([data.csv], { type: 'text/csv' });
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `bookings_${new Date().toISOString().split('T')[0]}.csv`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                window.URL.revokeObjectURL(url);
-            } catch (error) {
-                alert('Ошибка экспорта');
-            }
-        }
-
-        // Добавление слота
-        document.getElementById('add-slot-form').addEventListener('submit', async function(e) {
+        document.getElementById('login-form').addEventListener('submit', async function(e) {
             e.preventDefault();
 
-            const formData = new FormData(this);
-            const slotData = {
-                date: formData.get('date'),
-                lesson_number: parseInt(formData.get('lesson_number')),
-                classroom: formData.get('classroom'),
-                building: formData.get('building')
+            const formData = {
+                username: document.getElementById('username').value,
+                password: document.getElementById('password').value
             };
 
             try {
-                const response = await fetch('/admin/slots/', {
+                const response = await fetch('/admin/login', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify(slotData)
+                    body: JSON.stringify(formData)
                 });
 
                 if (response.ok) {
-                    alert('Слот успешно добавлен');
-                    this.reset();
-                    showSection('slots');
-                    setTimeout(() => location.reload(), 500);
+                    window.location.href = '/admin/dashboard';
                 } else {
-                    alert('Ошибка добавления слота');
+                    alert('Неверные учетные данные');
                 }
             } catch (error) {
                 alert('Ошибка сети');
             }
         });
-
-        // Загрузка CSV
-        document.getElementById('upload-csv-form').addEventListener('submit', async function(e) {
-            e.preventDefault();
-
-            const fileInput = document.getElementById('csv-file');
-            if (!fileInput.files[0]) return;
-
-            const formData = new FormData();
-            formData.append('file', fileInput.files[0]);
-
-            try {
-                const response = await fetch('/admin/slots/upload-csv', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                const result = await response.json();
-
-                if (response.ok) {
-                    alert(result.message);
-                    fileInput.value = '';
-                    showSection('slots');
-                    setTimeout(() => location.reload(), 500);
-                } else {
-                    alert('Ошибка: ' + result.detail);
-                }
-            } catch (error) {
-                alert('Ошибка загрузки файла');
-            }
-        });
-
-        // Удаление слота
-        async function deleteSlot(slotId) {
-            if (!confirm('Удалить этот слот?')) return;
-
-            try {
-                const response = await fetch(`/admin/slots/${slotId}`, {
-                    method: 'DELETE'
-                });
-
-                if (response.ok) {
-                    alert('Слот удален');
-                    location.reload();
-                } else {
-                    const error = await response.json();
-                    alert('Ошибка: ' + error.detail);
-                }
-            } catch (error) {
-                alert('Ошибка сети');
-            }
-        }
-
-        function logout() {
-            if (confirm('Выйти из панели администратора?')) {
-                window.location.href = '/';
-            }
-        }
     </script>
 </body>
 </html>
