@@ -1,14 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="9c578353-6f17-4ae7-b801-926f0f4ac4e4" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/.env" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/database.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/pet-project-MySql.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/pet-project-MySql.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+    <list default="true" id="9c578353-6f17-4ae7-b801-926f0f4ac4e4" name="Changes" comment="Pre-Alpha. Реализован основной функционал, связан с MySQL, (работает управление админа, базовый пользовательский функионал).">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app.py" beforeDir="false" afterPath="$PROJECT_DIR$/app.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/templates/admin_dashboard.html" beforeDir="false" afterPath="$PROJECT_DIR$/templates/admin_dashboard.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/templates/admin_login.html" beforeDir="false" afterPath="$PROJECT_DIR$/templates/admin_login.html" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -80,6 +77,15 @@
       <option name="presentableId" value="Default" />
       <updated>1765214270397</updated>
     </task>
+    <task id="LOCAL-00001" summary="Pre-Alpha. Реализован основной функционал, связан с MySQL, (работает управление админа, базовый пользовательский функионал).">
+      <option name="closed" value="true" />
+      <created>1765219441840</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1765219441840</updated>
+    </task>
+    <option name="localTasksCounter" value="2" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -104,5 +110,9 @@
         </entry>
       </map>
     </option>
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="Pre-Alpha. Реализован основной функционал, связан с MySQL, (работает управление админа, базовый пользовательский функионал)." />
+    <option name="LAST_COMMIT_MESSAGE" value="Pre-Alpha. Реализован основной функционал, связан с MySQL, (работает управление админа, базовый пользовательский функионал)." />
   </component>
 </project>

@@ -175,8 +175,7 @@
                         </div>
                         <div class="space-x-2">
                             <button onclick="deleteSlot({{ slot.id }})"
-                                    class="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700"
-                                    {% if not slot.is_available %}disabled{% endif %}>
+                                    class="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700">
                                 Удалить
                             </button>
                         </div>
@@ -296,10 +295,13 @@
         async function exportToCSV() {
             try {
                 const response = await fetch('/admin/bookings/export-csv');
-                const data = await response.json();
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Ошибка сервера: ${response.status} ${errorText}`);
+                }
 
-                // Создаем и скачиваем файл
-                const blob = new Blob([data.csv], { type: 'text/csv' });
+                // Создаем blob для скачивания
+                const blob = await response.blob();
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
@@ -308,8 +310,10 @@
                 a.click();
                 document.body.removeChild(a);
                 window.URL.revokeObjectURL(url);
+
             } catch (error) {
-                alert('Ошибка экспорта');
+                console.error('Ошибка экспорта:', error);
+                alert(`Ошибка экспорта: ${error.message}`);
             }
         }
 

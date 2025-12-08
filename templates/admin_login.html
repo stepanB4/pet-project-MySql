@@ -44,32 +44,46 @@
     </div>
 
     <script>
-        document.getElementById('login-form').addEventListener('submit', async function(e) {
+        document.getElementById('upload-csv-form').addEventListener('submit', async function(e) {
             e.preventDefault();
 
-            const formData = {
-                username: document.getElementById('username').value,
-                password: document.getElementById('password').value
-            };
+            const fileInput = document.getElementById('csv-file');
+            if (!fileInput.files[0]) return;
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
 
             try {
-                const response = await fetch('/admin/login', {
+                const response = await fetch('/admin/slots/upload-csv', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(formData)
+                    body: formData
                 });
 
+                // Пытаемся получить JSON ответ
+                let result;
+                try {
+                    result = await response.json();
+                } catch (jsonError) {
+                    throw new Error(`Сервер вернул некорректный JSON: ${jsonError.message}`);
+                }
+
                 if (response.ok) {
-                    window.location.href = '/admin/dashboard';
+                    alert(result.message + (result.details ? '\n' + result.details : ''));
+                    fileInput.value = '';
+                    showSection('slots');
+                    setTimeout(() => location.reload(), 500);
                 } else {
-                    alert('Неверные учетные данные');
+                    // Показываем детали ошибки из response
+                    console.error('Ошибка сервера:', result);
+                    const errorDetail = result.detail || result.message || JSON.stringify(result);
+                    alert('Ошибка загрузки: ' + errorDetail);
                 }
             } catch (error) {
-                alert('Ошибка сети');
+                console.error('Ошибка загрузки файла:', error);
+                alert('❌ Ошибка сети: ' + error.message);
             }
         });
+
     </script>
 </body>
 </html>

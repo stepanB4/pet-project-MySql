@@ -108,7 +108,7 @@ class DatabaseService:
             and_(
                 Slot.date == target_date,
                 Slot.is_booked == False,
-                Classroom.room_number == Slot.classroom_id  # Исправлено
+                Classroom.id == Slot.classroom_id  # Исправлено
             )
         ).all()
 
@@ -119,7 +119,8 @@ class DatabaseService:
             and_(
                 Slot.date >= start_date,
                 Slot.date <= end_date,
-                Slot.is_booked == False
+                Slot.is_booked == False,
+                Classroom.id == Slot.classroom_id
             )
         ).all()
 
@@ -233,7 +234,7 @@ class DatabaseService:
         classroom = db.query(Classroom).filter(
             and_(
                 Classroom.room_number == slot_data["classroom"],
-                Classroom.building == slot_data["building"]
+                Classroom.building == BuildingEnum(slot_data["building"])
             )
         ).first()
 
@@ -243,10 +244,21 @@ class DatabaseService:
                 building=BuildingEnum(slot_data["building"])
             )
             db.add(classroom)
-            db.commit()
-            db.refresh(classroom)
+            db.flush()  # Получаем ID аудитории
 
-        # Создаем слот
+        # Проверяем, не существует ли уже такой слот
+        existing = db.query(Slot).filter(
+            and_(
+                Slot.classroom_id == classroom.id,
+                Slot.date == slot_data["date"],
+                Slot.lesson_number == slot_data["lesson_number"]
+            )
+        ).first()
+
+        if existing:
+            print(f"Слот уже существует: {slot_data}")
+            return existing
+
         slot = Slot(
             classroom_id=classroom.id,
             date=slot_data["date"],
@@ -258,6 +270,7 @@ class DatabaseService:
         db.commit()
         db.refresh(slot)
 
+        print(f"Создан слот ID: {slot.id} (автоинкремент)")
         return slot
 
     @staticmethod
@@ -502,21 +515,116 @@ async def upload_slots_csv(file: bytes = Form(...), db: Session = Depends(get_db
         content = file.decode('utf-8')
         reader = csv.DictReader(io.StringIO(content))
 
+        print(f"Загружен CSV. Колонки: {reader.fieldnames}")
+        print(f"Первые строки: {list(reader)[:3] if reader else 'Пусто'}")
+
+        # Сбросить итератор
+        reader = csv.DictReader(io.StringIO(content))
+
         created_count = 0
-        for row in reader:
-            slot_data = {
-                "date": datetime.strptime(row['date'], '%Y-%m-%d').date(),
-                "lesson_number": int(row['lesson_number']),
-                "classroom": row['classroom'],
-                "building": row['building']
-            }
-            DatabaseService.create_slot(db, slot_data)
-            created_count += 1
+        errors = []
 
-        return {"message": f"Успешно загружено {created_count} слотов"}
+        for row_num, row in enumerate(reader, start=1):
+            print(f"Обработка строки {row_num}: {row}")
+
+            try:
+                # Проверяем наличие обязательных полей
+                required_fields = ['date', 'lesson_number', 'classroom', 'building']
+                missing_fields = [f for f in required_fields if f not in row or not row[f]]
+
+                if missing_fields:
+                    error_msg = f"Отсутствуют поля: {missing_fields}"
+                    print(f"Строка {row_num}: {error_msg}")
+                    errors.append(f"Строка {row_num}: {error_msg}")
+                    continue
+
+                # Парсим данные
+                try:
+                    slot_date = datetime.strptime(row['date'].strip(), '%Y-%m-%d').date()
+                except ValueError as e:
+                    error_msg = f"Неверный формат даты. Должно быть ГГГГ-ММ-ДД"
+                    print(f"Строка {row_num}: {error_msg}")
+                    errors.append(f"Строка {row_num}: {error_msg}")
+                    continue
+
+                try:
+                    lesson_num = int(row['lesson_number'])
+                    if not 1 <= lesson_num <= 8:
+                        error_msg = f"Номер пары должен быть от 1 до 8"
+                        print(f"Строка {row_num}: {error_msg}")
+                        errors.append(f"Строка {row_num}: {error_msg}")
+                        continue
+                except ValueError:
+                    error_msg = f"Номер пары должен быть числом"
+                    print(f"Строка {row_num}: {error_msg}")
+                    errors.append(f"Строка {row_num}: {error_msg}")
+                    continue
+
+                classroom = row['classroom'].strip()
+                building = row['building'].strip()
+
+                # Проверяем, существует ли аудитория
+                from database import BuildingEnum
+                try:
+                    building_enum = BuildingEnum(building)
+                except ValueError:
+                    valid_buildings = ", ".join([e.value for e in BuildingEnum])
+                    error_msg = f"Неверный корпус. Допустимые: {valid_buildings}"
+                    print(f"Строка {row_num}: {error_msg}")
+                    errors.append(f"Строка {row_num}: {error_msg}")
+                    continue
+
+                # Проверяем дубликаты
+                existing = db.query(Slot).join(Classroom).filter(
+                    and_(
+                        Slot.date == slot_date,
+                        Slot.lesson_number == lesson_num,
+                        Classroom.room_number == classroom,
+                        Classroom.building == building_enum
+                    )
+                ).first()
+
+                if existing:
+                    print(f"Строка {row_num}: слот уже существует")
+                    continue
+
+                # Создаем слот
+                slot_data = {
+                    "date": slot_date,
+                    "lesson_number": lesson_num,
+                    "classroom": classroom,
+                    "building": building
+                }
+
+                DatabaseService.create_slot(db, slot_data)
+                created_count += 1
+                print(f"Строка {row_num}: создан слот")
+
+            except Exception as e:
+                error_msg = f"Неизвестная ошибка: {str(e)}"
+                print(f"Строка {row_num}: {error_msg}")
+                errors.append(f"Строка {row_num}: {error_msg}")
+                continue
+
+        response_data = {
+            "message": f"Успешно загружено {created_count} слотов",
+            "created": created_count,
+            "errors": errors[:10]  # Ограничиваем количество ошибок в ответе
+        }
+
+        if errors:
+            response_data["error_count"] = len(errors)
+            response_data["warning"] = f"Найдено {len(errors)} ошибок"
+
+        return response_data
+
+    except UnicodeDecodeError:
+        raise HTTPException(status_code=400, detail="Файл должен быть в кодировке UTF-8")
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Ошибка обработки CSV: {str(e)}")
-
+        import traceback
+        print(f"Критическая ошибка: {str(e)}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Ошибка обработки файла: {str(e)}")
 
 @app.delete("/admin/slots/{slot_id}")
 async def delete_slot(slot_id: int, db: Session = Depends(get_db)):
@@ -542,38 +650,57 @@ async def confirm_all_bookings(db: Session = Depends(get_db)):
 
 @app.get("/admin/bookings/export-csv")
 async def export_bookings_csv(db: Session = Depends(get_db)):
-    confirmed_bookings = DatabaseService.get_confirmed_bookings(db)
+    """Экспорт подтвержденных бронирований в CSV (с колонкой 'Пара' вместо 'Время')"""
+    try:
+        confirmed_bookings = DatabaseService.get_confirmed_bookings(db)
 
-    output = io.StringIO()
-    fieldnames = ['ID', 'ФИО', 'Группа', 'Мероприятие', 'Предыдущая аудитория',
-                  'Email', 'Дата', 'Время', 'Аудитория', 'Корпус', 'Статус']
-    writer = csv.DictWriter(output, fieldnames=fieldnames)
-    writer.writeheader()
+        output = io.StringIO()
+        # Изменено: 'Время' → 'Пара'
+        fieldnames = ['ФИО', 'Группа', 'Мероприятие', 'Предыдущая аудитория',
+                      'Email', 'Дата', 'Пара', 'Аудитория', 'Корпус', 'Статус']
+        writer = csv.DictWriter(output, fieldnames=fieldnames)
+        writer.writeheader()
 
-    for slot in confirmed_bookings:
-        classroom = db.query(Classroom).filter(Classroom.id == slot.classroom_id).first()
-        if classroom:
+        for slot in confirmed_bookings:
+            classroom = db.query(Classroom).filter(
+                Classroom.id == slot.classroom_id
+            ).first()
+
+            if not classroom:
+                continue
+
             writer.writerow({
-                'ID': slot.id,
-                'ФИО': slot.teacher_name,
-                'Группа': slot.group_name,
-                'Мероприятие': slot.event_type,
+                'ФИО': slot.teacher_name or '',
+                'Группа': slot.group_name or '',
+                'Мероприятие': slot.event_type or '',
                 'Предыдущая аудитория': slot.previous_classroom or '',
-                'Email': slot.email,
+                'Email': slot.email or '',
                 'Дата': slot.date,
-                'Время': get_lesson_time(slot.lesson_number),
+                'Пара': slot.lesson_number,  # Изменено: номер пары вместо времени
                 'Аудитория': classroom.room_number,
                 'Корпус': classroom.building.value,
                 'Статус': slot.status.value
             })
 
-    # Возвращаем файл для скачивания
-    output.seek(0)
-    return StreamingResponse(
-        io.BytesIO(output.getvalue().encode('utf-8')),
-        media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=bookings.csv"}
-    )
+        output.seek(0)
+        return StreamingResponse(
+            io.BytesIO(output.getvalue().encode('utf-8-sig')),
+            media_type="text/csv; charset=utf-8-sig",
+            headers={
+                "Content-Disposition": "attachment; filename=bookings.csv",
+                "Content-Type": "text/csv; charset=utf-8-sig"
+            }
+        )
+
+    except Exception as e:
+        print(f"Ошибка при экспорте CSV: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Ошибка экспорта: {str(e)}"
+        )
+
 
 
 # Роут для инициализации тестовых данных
