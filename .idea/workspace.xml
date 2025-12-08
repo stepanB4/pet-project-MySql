@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="9c578353-6f17-4ae7-b801-926f0f4ac4e4" name="Changes" comment="Alpha. Исправлены косяки">
+    <list default="true" id="9c578353-6f17-4ae7-b801-926f0f4ac4e4" name="Changes" comment="Alpha. Реализовано взаимодействие с CSV">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app.py" beforeDir="false" afterPath="$PROJECT_DIR$/app.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/templates/admin_dashboard.html" beforeDir="false" afterPath="$PROJECT_DIR$/templates/admin_dashboard.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/templates/teacher_calendar1.html" beforeDir="false" afterPath="$PROJECT_DIR$/templates/teacher_calendar1.html" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -109,7 +109,15 @@
       <option name="project" value="LOCAL" />
       <updated>1765228482955</updated>
     </task>
-    <option name="localTasksCounter" value="5" />
+    <task id="LOCAL-00005" summary="Alpha. Реализовано взаимодействие с CSV">
+      <option name="closed" value="true" />
+      <created>1765232418214</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1765232418214</updated>
+    </task>
+    <option name="localTasksCounter" value="6" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -139,6 +147,7 @@
     <MESSAGE value="Pre-Alpha. Реализован основной функционал, связан с MySQL, (работает управление админа, базовый пользовательский функионал)." />
     <MESSAGE value="Alpha. Реализован экспорт CSV, мелкие баги убраны (с отображением во фронтенде)" />
     <MESSAGE value="Alpha. Исправлены косяки" />
-    <option name="LAST_COMMIT_MESSAGE" value="Alpha. Исправлены косяки" />
+    <MESSAGE value="Alpha. Реализовано взаимодействие с CSV" />
+    <option name="LAST_COMMIT_MESSAGE" value="Alpha. Реализовано взаимодействие с CSV" />
   </component>
 </project>
