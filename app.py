@@ -1,4 +1,5 @@
 # app.py (полностью обновленный)
+from fastapi import UploadFile, File
 from fastapi import FastAPI, HTTPException, Request, Depends, Form, status
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
@@ -510,68 +511,100 @@ async def create_slot(slot: SlotCreate, db: Session = Depends(get_db)):
 
 
 @app.post("/admin/slots/upload-csv")
-async def upload_slots_csv(file: bytes = Form(...), db: Session = Depends(get_db)):
+async def upload_slots_csv(
+        file: UploadFile = File(...),
+        db: Session = Depends(get_db)
+):
+    """Загрузить слоты из CSV"""
     try:
-        content = file.decode('utf-8')
-        reader = csv.DictReader(io.StringIO(content))
+        print(f"🔍 Получен файл: {file.filename}, размер: {file.size}")
 
-        print(f"Загружен CSV. Колонки: {reader.fieldnames}")
-        print(f"Первые строки: {list(reader)[:3] if reader else 'Пусто'}")
+        # Читаем файл
+        content_bytes = await file.read()
 
-        # Сбросить итератор
-        reader = csv.DictReader(io.StringIO(content))
+        # Декодируем с учетом BOM
+        content_str = content_bytes.decode('utf-8-sig')
+        content_str = content_str.strip()
+
+        # Удаляем BOM если остался
+        if content_str.startswith('\ufeff'):
+            content_str = content_str[1:].strip()
+
+        print(f"🔍 Содержимое:\n{content_str}")
+
+        # Разделяем на строки и убираем пустые
+        lines = [line.strip() for line in content_str.splitlines() if line.strip()]
+
+        if len(lines) < 2:
+            raise HTTPException(status_code=400, detail="CSV файл пуст")
+
+        # Создаем CSV reader
+        csv_content = '\n'.join(lines)
+        csv_file = io.StringIO(csv_content)
+        reader = csv.DictReader(csv_file)
+
+        if not reader.fieldnames:
+            raise HTTPException(status_code=400, detail="CSV не содержит заголовков")
+
+        print(f"🔍 Заголовки: {reader.fieldnames}")
 
         created_count = 0
         errors = []
 
         for row_num, row in enumerate(reader, start=1):
-            print(f"Обработка строки {row_num}: {row}")
+            print(f"📝 Строка {row_num}: {row}")
 
             try:
-                # Проверяем наличие обязательных полей
-                required_fields = ['date', 'lesson_number', 'classroom', 'building']
-                missing_fields = [f for f in required_fields if f not in row or not row[f]]
-
-                if missing_fields:
-                    error_msg = f"Отсутствуют поля: {missing_fields}"
-                    print(f"Строка {row_num}: {error_msg}")
-                    errors.append(f"Строка {row_num}: {error_msg}")
+                # Пропускаем пустые строки
+                if not any(str(value).strip() for value in row.values()):
                     continue
 
-                # Парсим данные
-                try:
-                    slot_date = datetime.strptime(row['date'].strip(), '%Y-%m-%d').date()
-                except ValueError as e:
-                    error_msg = f"Неверный формат даты. Должно быть ГГГГ-ММ-ДД"
-                    print(f"Строка {row_num}: {error_msg}")
-                    errors.append(f"Строка {row_num}: {error_msg}")
+                # Получаем значения (без привязки к конкретным названиям колонок)
+                # Просто берем первые 4 колонки в порядке заголовков
+                headers = list(row.keys())
+                if len(headers) < 4:
+                    errors.append(f"Строка {row_num}: недостаточно колонок")
                     continue
 
+                date_str = str(row[headers[0]]).strip()
+                lesson_str = str(row[headers[1]]).strip()
+                classroom = str(row[headers[2]]).strip()
+                building = str(row[headers[3]]).strip()
+
+                print(
+                    f"  Извлечено: дата='{date_str}', пара='{lesson_str}', аудитория='{classroom}', корпус='{building}'")
+
+                # Парсим дату в формате ДД.ММ.ГГГГ
                 try:
-                    lesson_num = int(row['lesson_number'])
+                    # Заменяем точки на дефисы для стандартного формата
+                    if '.' in date_str:
+                        day, month, year = date_str.split('.')
+                        date_str = f"{year}-{month}-{day}"
+
+                    slot_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+                    print(f"  Дата: {slot_date}")
+                except ValueError:
+                    errors.append(f"Строка {row_num}: неверный формат даты '{date_str}'")
+                    continue
+
+                # Парсим номер пары
+                try:
+                    lesson_num = int(lesson_str)
                     if not 1 <= lesson_num <= 8:
-                        error_msg = f"Номер пары должен быть от 1 до 8"
-                        print(f"Строка {row_num}: {error_msg}")
-                        errors.append(f"Строка {row_num}: {error_msg}")
+                        errors.append(f"Строка {row_num}: номер пары должен быть 1-8")
                         continue
                 except ValueError:
-                    error_msg = f"Номер пары должен быть числом"
-                    print(f"Строка {row_num}: {error_msg}")
-                    errors.append(f"Строка {row_num}: {error_msg}")
+                    errors.append(f"Строка {row_num}: номер пары должен быть числом")
                     continue
 
-                classroom = row['classroom'].strip()
-                building = row['building'].strip()
+                # Нормализуем корпус
+                building_normalized = building.upper().strip()
 
-                # Проверяем, существует ли аудитория
-                from database import BuildingEnum
+                # Проверяем корпус
                 try:
-                    building_enum = BuildingEnum(building)
+                    building_enum = BuildingEnum(building_normalized)
                 except ValueError:
-                    valid_buildings = ", ".join([e.value for e in BuildingEnum])
-                    error_msg = f"Неверный корпус. Допустимые: {valid_buildings}"
-                    print(f"Строка {row_num}: {error_msg}")
-                    errors.append(f"Строка {row_num}: {error_msg}")
+                    errors.append(f"Строка {row_num}: неверный корпус '{building}'")
                     continue
 
                 # Проверяем дубликаты
@@ -585,7 +618,7 @@ async def upload_slots_csv(file: bytes = Form(...), db: Session = Depends(get_db
                 ).first()
 
                 if existing:
-                    print(f"Строка {row_num}: слот уже существует")
+                    print(f"  ⚠️  Слот уже существует")
                     continue
 
                 # Создаем слот
@@ -593,38 +626,32 @@ async def upload_slots_csv(file: bytes = Form(...), db: Session = Depends(get_db
                     "date": slot_date,
                     "lesson_number": lesson_num,
                     "classroom": classroom,
-                    "building": building
+                    "building": building_normalized
                 }
 
                 DatabaseService.create_slot(db, slot_data)
                 created_count += 1
-                print(f"Строка {row_num}: создан слот")
+                print(f"  ✅ Создан слот")
 
             except Exception as e:
-                error_msg = f"Неизвестная ошибка: {str(e)}"
-                print(f"Строка {row_num}: {error_msg}")
-                errors.append(f"Строка {row_num}: {error_msg}")
+                errors.append(f"Строка {row_num}: ошибка обработки - {str(e)}")
                 continue
 
-        response_data = {
-            "message": f"Успешно загружено {created_count} слотов",
-            "created": created_count,
-            "errors": errors[:10]  # Ограничиваем количество ошибок в ответе
+        result = {
+            "message": f"Успешно обработано {created_count} строк",
+            "created": created_count
         }
 
         if errors:
-            response_data["error_count"] = len(errors)
-            response_data["warning"] = f"Найдено {len(errors)} ошибок"
+            result["errors"] = errors
 
-        return response_data
+        return result
 
-    except UnicodeDecodeError:
-        raise HTTPException(status_code=400, detail="Файл должен быть в кодировке UTF-8")
     except Exception as e:
+        print(f"❌ Ошибка: {str(e)}")
         import traceback
-        print(f"Критическая ошибка: {str(e)}")
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Ошибка обработки файла: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.delete("/admin/slots/{slot_id}")
 async def delete_slot(slot_id: int, db: Session = Depends(get_db)):
