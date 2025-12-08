@@ -404,6 +404,26 @@
                 window.location.href = '/';
             }
         }
+
+        async function deleteSlot(slotId) {
+            if (!confirm('Удалить этот слот?')) return;
+
+            try {
+                const response = await fetch(`/admin/slots/${slotId}`, {
+                method: 'DELETE'
+            });
+
+                if (response.ok) {
+                    alert('Слот удален');
+                    location.reload();
+                } else {
+                    const error = await response.json();
+                    alert('Ошибка: ' + error.detail);
+                }
+            } catch (error) {
+                alert('Ошибка сети');
+            }
+        }
     </script>
 </body>
 </html>

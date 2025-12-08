@@ -1,16 +1,32 @@
-
-from fastapi import FastAPI, HTTPException, Request, Depends, Form
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+# app.py (полностью обновленный)
+from fastapi import FastAPI, HTTPException, Request, Depends, Form, status
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel, EmailStr
 from datetime import date, datetime, timedelta
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Any
+from sqlalchemy.orm import Session
+from sqlalchemy import and_, or_, func, extract
 import csv
 import io
 import calendar
+import secrets
+
+# Импортируем модуль базы данных
+from database import (
+    get_db, SessionLocal,
+    Classroom, Slot, Admin,
+    BuildingEnum, BookingStatus,
+    get_lesson_time, create_tables
+)
+
+# Создаем таблицы
+create_tables()
 
 app = FastAPI(title="Booking System")
 templates = Jinja2Templates(directory="templates")
+security = HTTPBasic()
 
 RUSSIAN_MONTHS = {
     1: "Январь", 2: "Февраль", 3: "Март", 4: "Апрель",
@@ -20,151 +36,7 @@ RUSSIAN_MONTHS = {
 
 
 def get_russian_month_name(month_number: int) -> str:
-    """Возвращает название месяца на русском"""
     return RUSSIAN_MONTHS.get(month_number, "Неизвестный месяц")
-
-
-# Хранилище данных (в памяти)
-class DataStorage:
-    def __init__(self):
-        self.slots = []
-        self.bookings = []
-        self.admins = {"admin": "admin123"}  # Простая аутентификация
-        self.next_slot_id = 1
-        self.next_booking_id = 1
-        self._initialize_sample_data()
-
-    def _initialize_sample_data(self):
-        """Демо-данные для тестирования"""
-        today = date.today()
-
-        # Создаем слоты на текущий месяц
-        for day in range(1, 29):
-            weekday = date(today.year, today.month, day).weekday()
-            if weekday < 5:  # Понедельник-пятница
-                for lesson in [1, 3, 5]:  # 1, 3, 5 пары
-                    slot_data = {
-                        "date": date(today.year, today.month, day),
-                        "lesson_number": lesson,
-                        "classroom": f"10{lesson}",
-                        "building": "ГЗ",
-                        "is_available": True
-                    }
-                    self.create_slot(slot_data)
-
-        # Добавим немного слотов на следующий месяц для демонстрации
-        next_month = today.month + 1 if today.month < 12 else 1
-        next_year = today.year if today.month < 12 else today.year + 1
-
-        for day in [1, 2, 3, 4, 5]:
-            slot_data = {
-                "date": date(next_year, next_month, day),
-                "lesson_number": 2,
-                "classroom": "201",
-                "building": "УЛК",
-                "is_available": True
-            }
-            self.create_slot(slot_data)
-
-        # Создаем несколько демо-бронирований
-        demo_slots = [slot for slot in self.slots if slot["is_available"]][:3]
-        for i, slot in enumerate(demo_slots):
-            booking_data = {
-                "slot_id": slot["id"],
-                "full_name": f"Преподаватель {i + 1}",
-                "group": f"Группа {i + 1}",
-                "event_type": "Лекция",
-                "previous_classroom": f"Старая аудитория {i + 1}",
-                "email": f"teacher{i + 1}@university.edu"
-            }
-            self.create_booking(booking_data)
-
-    def create_slot(self, slot_data: dict):
-        slot = {
-            "id": self.next_slot_id,
-            "date": slot_data["date"],
-            "lesson_number": slot_data["lesson_number"],
-            "classroom": slot_data["classroom"],
-            "building": slot_data["building"],
-            "is_available": slot_data.get("is_available", True)
-        }
-        self.slots.append(slot)
-        self.next_slot_id += 1
-        return slot
-
-    def get_available_slots_by_date(self, target_date: date):
-        return [slot for slot in self.slots
-                if slot["date"] == target_date and slot["is_available"]]
-
-    def get_available_slots_by_week(self, start_date: date):
-        end_date = start_date + timedelta(days=6)
-        return [slot for slot in self.slots
-                if start_date <= slot["date"] <= end_date and slot["is_available"]]
-
-    def get_available_slots_by_month(self, year: int, month: int):
-        """Получить все доступные слоты за месяц"""
-        start_date = date(year, month, 1)
-        if month == 12:
-            end_date = date(year + 1, 1, 1) - timedelta(days=1)
-        else:
-            end_date = date(year, month + 1, 1) - timedelta(days=1)
-
-        slots = [slot for slot in self.slots
-                 if start_date <= slot["date"] <= end_date and slot["is_available"]]
-
-        # Группируем по дням для удобства
-        grouped_slots = {}
-        for slot in slots:
-            date_str = slot["date"].isoformat()
-            if date_str not in grouped_slots:
-                grouped_slots[date_str] = 0
-            grouped_slots[date_str] += 1
-
-        return grouped_slots
-
-    def create_booking(self, booking_data: dict):
-        booking = {
-            "id": self.next_booking_id,
-            "slot_id": booking_data["slot_id"],
-            "full_name": booking_data["full_name"],
-            "group": booking_data["group"],
-            "event_type": booking_data["event_type"],
-            "previous_classroom": booking_data.get("previous_classroom"),
-            "email": booking_data["email"],
-            "status": "pending",  # pending, confirmed
-            "created_at": datetime.now()
-        }
-
-        # Помечаем слот как занятый
-        slot = self.get_slot_by_id(booking_data["slot_id"])
-        if slot:
-            slot["is_available"] = False
-
-        self.bookings.append(booking)
-        self.next_booking_id += 1
-        return booking
-
-    def get_slot_by_id(self, slot_id: int):
-        return next((slot for slot in self.slots if slot["id"] == slot_id), None)
-
-    def confirm_booking(self, booking_id: int):
-        booking = next((b for b in self.bookings if b["id"] == booking_id), None)
-        if booking:
-            booking["status"] = "confirmed"
-            print(f"Отправка email на {booking['email']}: Бронирование подтверждено")
-            return booking
-        return None
-
-    def confirm_all_bookings(self):
-        for booking in self.bookings:
-            if booking["status"] == "pending":
-                booking["status"] = "confirmed"
-                print(f"Отправка email на {booking['email']}: Бронирование подтверждено")
-        return True
-
-
-# Инициализация хранилища
-storage = DataStorage()
 
 
 # Модели Pydantic
@@ -173,6 +45,16 @@ class SlotCreate(BaseModel):
     lesson_number: int
     classroom: str
     building: str
+
+
+class SlotResponse(BaseModel):
+    id: int
+    date: date
+    lesson_number: int
+    classroom: str
+    building: str
+    is_available: bool
+    lesson_time: str
 
 
 class BookingCreate(BaseModel):
@@ -190,37 +72,20 @@ class AdminLogin(BaseModel):
 
 
 # Вспомогательные функции
-def get_lesson_time(lesson_number: int) -> str:
-    """Возвращает время пары по номеру"""
-    lessons = {
-        1: "8:30-10:05",
-        2: "10:15-11:50",
-        3: "12:00-13:35",
-        4: "13:50-15:25",
-        5: "15:40-17:15",
-        6: "17:25-19:00",
-        7: "19:10-20:45"
-    }
-    return lessons.get(lesson_number, "Неизвестно")
-
-
 def get_week_dates(start_date: date):
-    """Возвращает даты недели начиная с указанной даты"""
     return [start_date + timedelta(days=i) for i in range(7)]
 
 
 def get_month_calendar(year: int, month: int):
-    """Генерирует календарь на месяц"""
-    cal = calendar.Calendar(firstweekday=0)  # Понедельник первый день недели
+    cal = calendar.Calendar(firstweekday=0)
     month_days = cal.monthdayscalendar(year, month)
 
-    # Преобразуем в удобный формат
     calendar_data = []
     for week in month_days:
         week_data = []
         for day in week:
             if day == 0:
-                week_data.append(None)  # Пустой день (из другого месяца)
+                week_data.append(None)
             else:
                 day_date = date(year, month, day)
                 week_data.append({
@@ -235,15 +100,197 @@ def get_month_calendar(year: int, month: int):
     return calendar_data
 
 
+# Функции работы с базой данных
+class DatabaseService:
+    @staticmethod
+    def get_available_slots_by_date(db: Session, target_date: date):
+        return db.query(Slot).join(Classroom).filter(
+            and_(
+                Slot.date == target_date,
+                Slot.is_booked == False,
+                Classroom.room_number == Slot.classroom_id  # Исправлено
+            )
+        ).all()
+
+    @staticmethod
+    def get_available_slots_by_week(db: Session, start_date: date):
+        end_date = start_date + timedelta(days=6)
+        return db.query(Slot).join(Classroom).filter(
+            and_(
+                Slot.date >= start_date,
+                Slot.date <= end_date,
+                Slot.is_booked == False
+            )
+        ).all()
+
+    @staticmethod
+    def get_available_slots_by_month(db: Session, year: int, month: int):
+        # Получаем первый и последний день месяца
+        start_date = date(year, month, 1)
+        if month == 12:
+            end_date = date(year + 1, 1, 1) - timedelta(days=1)
+        else:
+            end_date = date(year, month + 1, 1) - timedelta(days=1)
+
+        # Получаем все свободные слоты за месяц
+        slots = db.query(Slot).join(Classroom).filter(
+            and_(
+                Slot.date >= start_date,
+                Slot.date <= end_date,
+                Slot.is_booked == False
+            )
+        ).all()
+
+        # Группируем по дням
+        grouped_slots = {}
+        for slot in slots:
+            date_str = slot.date.isoformat()
+            if date_str not in grouped_slots:
+                grouped_slots[date_str] = 0
+            grouped_slots[date_str] += 1
+
+        return grouped_slots
+
+    @staticmethod
+    def get_slot_by_id(db: Session, slot_id: int):
+        return db.query(Slot).filter(Slot.id == slot_id).first()
+
+    @staticmethod
+    def create_booking(db: Session, booking_data: dict):
+        # Находим слот
+        slot = db.query(Slot).filter(Slot.id == booking_data["slot_id"]).first()
+        if not slot:
+            return None
+
+        if slot.is_booked:
+            return None
+
+        # Обновляем слот
+        slot.is_booked = True
+        slot.teacher_name = booking_data["full_name"]
+        slot.group_name = booking_data["group"]
+        slot.event_type = booking_data["event_type"]
+        slot.previous_classroom = booking_data.get("previous_classroom")
+        slot.email = booking_data["email"]
+        slot.status = BookingStatus.pending
+        slot.updated_at = datetime.utcnow()
+
+        db.commit()
+        db.refresh(slot)
+
+        return slot
+
+    @staticmethod
+    def get_pending_bookings(db: Session):
+        return db.query(Slot).join(Classroom).filter(
+            and_(
+                Slot.is_booked == True,
+                Slot.status == BookingStatus.pending
+            )
+        ).all()
+
+    @staticmethod
+    def get_confirmed_bookings(db: Session):
+        return db.query(Slot).join(Classroom).filter(
+            and_(
+                Slot.is_booked == True,
+                Slot.status == BookingStatus.confirmed
+            )
+        ).all()
+
+    @staticmethod
+    def confirm_booking(db: Session, slot_id: int):
+        slot = db.query(Slot).filter(Slot.id == slot_id).first()
+        if not slot:
+            return None
+
+        slot.status = BookingStatus.confirmed
+        slot.updated_at = datetime.utcnow()
+
+        db.commit()
+        db.refresh(slot)
+
+        # Здесь можно добавить отправку email
+        print(f"Отправка email на {slot.email}: Бронирование подтверждено")
+
+        return slot
+
+    @staticmethod
+    def confirm_all_bookings(db: Session):
+        pending = db.query(Slot).filter(Slot.status == BookingStatus.pending).all()
+
+        for slot in pending:
+            slot.status = BookingStatus.confirmed
+            slot.updated_at = datetime.utcnow()
+            print(f"Отправка email на {slot.email}: Бронирование подтверждено")
+
+        db.commit()
+        return len(pending)
+
+    @staticmethod
+    def create_slot(db: Session, slot_data: dict):
+        # Находим или создаем аудиторию
+        classroom = db.query(Classroom).filter(
+            and_(
+                Classroom.room_number == slot_data["classroom"],
+                Classroom.building == slot_data["building"]
+            )
+        ).first()
+
+        if not classroom:
+            classroom = Classroom(
+                room_number=slot_data["classroom"],
+                building=BuildingEnum(slot_data["building"])
+            )
+            db.add(classroom)
+            db.commit()
+            db.refresh(classroom)
+
+        # Создаем слот
+        slot = Slot(
+            classroom_id=classroom.id,
+            date=slot_data["date"],
+            lesson_number=slot_data["lesson_number"],
+            is_booked=False
+        )
+
+        db.add(slot)
+        db.commit()
+        db.refresh(slot)
+
+        return slot
+
+    @staticmethod
+    def get_all_slots(db: Session):
+        return db.query(Slot).join(Classroom).order_by(Slot.date, Slot.lesson_number).all()
+
+    @staticmethod
+    def delete_slot(db: Session, slot_id: int):
+        slot = db.query(Slot).filter(Slot.id == slot_id).first()
+        if not slot:
+            return False
+
+        db.delete(slot)
+        db.commit()
+        return True
+
+    @staticmethod
+    def authenticate_admin(db: Session, username: str, password: str):
+        # В реальном приложении используйте хеширование паролей!
+        admin = db.query(Admin).filter(Admin.username == username).first()
+        if admin and admin.password_hash == password:  # Простое сравнение для демо
+            return admin
+        return None
+
+
 # Роуты для преподавателя
 @app.get("/", response_class=HTMLResponse)
-async def teacher_calendar(request: Request):
-    """Главная страница для преподавателя - календарь"""
+async def teacher_calendar(request: Request, db: Session = Depends(get_db)):
     today = date.today()
     month_calendar = get_month_calendar(today.year, today.month)
 
     # Получаем количество слотов по дням
-    month_slots = storage.get_available_slots_by_month(today.year, today.month)
+    month_slots = DatabaseService.get_available_slots_by_month(db, today.year, today.month)
 
     # Обновляем календарь с информацией о слотах
     for week in month_calendar:
@@ -265,10 +312,9 @@ async def teacher_calendar(request: Request):
 
 
 @app.get("/api/calendar/{year}/{month}")
-async def get_calendar(year: int, month: int):
-    """Получить календарь на месяц с информацией о слотах"""
+async def get_calendar(year: int, month: int, db: Session = Depends(get_db)):
     month_calendar = get_month_calendar(year, month)
-    month_slots = storage.get_available_slots_by_month(year, month)
+    month_slots = DatabaseService.get_available_slots_by_month(db, year, month)
 
     # Обновляем календарь с информацией о слотах
     for week in month_calendar:
@@ -286,11 +332,9 @@ async def get_calendar(year: int, month: int):
 
 
 @app.get("/api/slots/month/{year}/{month}")
-async def get_month_slots_summary(year: int, month: int):
-    """Получить сводку по слотам за месяц"""
-    slots = storage.get_available_slots_by_month(year, month)
+async def get_month_slots_summary(year: int, month: int, db: Session = Depends(get_db)):
+    slots = DatabaseService.get_available_slots_by_month(db, year, month)
 
-    # Подсчитываем общее количество слотов и дней со слотами
     total_slots = sum(slots.values())
     days_with_slots = len(slots)
 
@@ -302,44 +346,48 @@ async def get_month_slots_summary(year: int, month: int):
 
 
 @app.get("/api/slots/date/{slot_date}")
-async def get_slots_by_date(slot_date: date):
-    """Получить слоты на конкретную дату"""
-    slots = storage.get_available_slots_by_date(slot_date)
+async def get_slots_by_date(slot_date: date, db: Session = Depends(get_db)):
+    slots = DatabaseService.get_available_slots_by_date(db, slot_date)
     result = []
+
     for slot in slots:
-        result.append({
-            "id": slot["id"],
-            "date": slot["date"].isoformat(),
-            "lesson_number": slot["lesson_number"],
-            "classroom": slot["classroom"],
-            "building": slot["building"],
-            "lesson_time": get_lesson_time(slot["lesson_number"])
-        })
+        classroom = db.query(Classroom).filter(Classroom.id == slot.classroom_id).first()
+        if classroom:
+            result.append({
+                "id": slot.id,
+                "date": slot.date.isoformat(),
+                "lesson_number": slot.lesson_number,
+                "classroom": classroom.room_number,
+                "building": classroom.building.value,
+                "lesson_time": get_lesson_time(slot.lesson_number)
+            })
+
     return result
 
 
 @app.get("/api/slots/week/{start_date}")
-async def get_slots_by_week(start_date: date):
-    """Получить слоты на неделю"""
-    slots = storage.get_available_slots_by_week(start_date)
+async def get_slots_by_week(start_date: date, db: Session = Depends(get_db)):
+    slots = DatabaseService.get_available_slots_by_week(db, start_date)
 
     # Группируем по дням
     week_slots = {}
     for i in range(7):
         day_date = start_date + timedelta(days=i)
-        day_slots = [slot for slot in slots if slot["date"] == day_date]
-        week_slots[day_date.isoformat()] = [
-            {
-                "id": slot["id"],
-                "date": slot["date"].isoformat(),
-                "lesson_number": slot["lesson_number"],
-                "classroom": slot["classroom"],
-                "building": slot["building"],
-                "lesson_time": get_lesson_time(slot["lesson_number"]),
-                "date_display": day_date.strftime("%d.%m.%Y")
-            }
-            for slot in day_slots
-        ]
+        day_slots = [slot for slot in slots if slot.date == day_date]
+
+        week_slots[day_date.isoformat()] = []
+        for slot in day_slots:
+            classroom = db.query(Classroom).filter(Classroom.id == slot.classroom_id).first()
+            if classroom:
+                week_slots[day_date.isoformat()].append({
+                    "id": slot.id,
+                    "date": slot.date.isoformat(),
+                    "lesson_number": slot.lesson_number,
+                    "classroom": classroom.room_number,
+                    "building": classroom.building.value,
+                    "lesson_time": get_lesson_time(slot.lesson_number),
+                    "date_display": day_date.strftime("%d.%m.%Y")
+                })
 
     return {
         "start_date": start_date.isoformat(),
@@ -349,67 +397,107 @@ async def get_slots_by_week(start_date: date):
 
 
 @app.post("/api/bookings/")
-async def create_booking(booking: BookingCreate):
-    """Создать бронирование"""
-    slot = storage.get_slot_by_id(booking.slot_id)
-    if not slot or not slot["is_available"]:
+async def create_booking(booking: BookingCreate, db: Session = Depends(get_db)):
+    slot = DatabaseService.get_slot_by_id(db, booking.slot_id)
+    if not slot or slot.is_booked:
         raise HTTPException(status_code=400, detail="Слот недоступен")
 
-    created_booking = storage.create_booking(booking.dict())
-    return {"message": "Бронирование создано", "booking_id": created_booking["id"]}
+    booking_data = booking.dict()
+    created_booking = DatabaseService.create_booking(db, booking_data)
+
+    if not created_booking:
+        raise HTTPException(status_code=400, detail="Ошибка создания бронирования")
+
+    return {"message": "Бронирование создано", "booking_id": created_booking.id}
 
 
-# Роуты для администратора (из кода 1)
+# Роуты для администратора
 @app.get("/admin/login", response_class=HTMLResponse)
 async def admin_login_page(request: Request):
-    """Страница входа для администратора"""
     return templates.TemplateResponse("admin_login.html", {"request": request})
 
 
 @app.post("/admin/login")
-async def admin_login(login_data: AdminLogin):
-    """Аутентификация администратора"""
-    if (login_data.username in storage.admins and
-            storage.admins[login_data.username] == login_data.password):
-        return {"message": "Успешный вход", "redirect": "/admin/dashboard"}
-    raise HTTPException(status_code=401, detail="Неверные учетные данные")
+async def admin_login(login_data: AdminLogin, db: Session = Depends(get_db)):
+    admin = DatabaseService.authenticate_admin(db, login_data.username, login_data.password)
+    if not admin:
+        raise HTTPException(status_code=401, detail="Неверные учетные данные")
+
+    return {"message": "Успешный вход", "redirect": "/admin/dashboard"}
 
 
 @app.get("/admin/dashboard", response_class=HTMLResponse)
-async def admin_dashboard(request: Request):
-    """Панель управления администратора"""
-    pending_bookings = [b for b in storage.bookings if b["status"] == "pending"]
-    confirmed_bookings = [b for b in storage.bookings if b["status"] == "confirmed"]
+async def admin_dashboard(request: Request, db: Session = Depends(get_db)):
+    # Получаем данные из базы
+    pending_bookings = DatabaseService.get_pending_bookings(db)
+    confirmed_bookings = DatabaseService.get_confirmed_bookings(db)
+    all_slots = DatabaseService.get_all_slots(db)
 
-    # Добавляем информацию о слотах к бронированиям
-    for booking in pending_bookings + confirmed_bookings:
-        slot = storage.get_slot_by_id(booking["slot_id"])
-        if slot:
-            booking["slot_info"] = {
-                "date": slot["date"],
-                "lesson_time": get_lesson_time(slot["lesson_number"]),
-                "classroom": slot["classroom"],
-                "building": slot["building"]
+    # Подготавливаем данные для шаблона
+    pending_list = []
+    for slot in pending_bookings:
+        classroom = db.query(Classroom).filter(Classroom.id == slot.classroom_id).first()
+        pending_list.append({
+            "id": slot.id,
+            "full_name": slot.teacher_name,
+            "group": slot.group_name,
+            "event_type": slot.event_type,
+            "previous_classroom": slot.previous_classroom,
+            "email": slot.email,
+            "slot_info": {
+                "date": slot.date,
+                "lesson_time": get_lesson_time(slot.lesson_number),
+                "classroom": classroom.room_number if classroom else "",
+                "building": classroom.building.value if classroom else ""
             }
+        })
+
+    confirmed_list = []
+    for slot in confirmed_bookings:
+        classroom = db.query(Classroom).filter(Classroom.id == slot.classroom_id).first()
+        confirmed_list.append({
+            "id": slot.id,
+            "full_name": slot.teacher_name,
+            "group": slot.group_name,
+            "event_type": slot.event_type,
+            "previous_classroom": slot.previous_classroom,
+            "email": slot.email,
+            "slot_info": {
+                "date": slot.date,
+                "lesson_time": get_lesson_time(slot.lesson_number),
+                "classroom": classroom.room_number if classroom else "",
+                "building": classroom.building.value if classroom else ""
+            }
+        })
+
+    slots_list = []
+    for slot in all_slots:
+        classroom = db.query(Classroom).filter(Classroom.id == slot.classroom_id).first()
+        slots_list.append({
+            "id": slot.id,
+            "date": slot.date,
+            "lesson_number": slot.lesson_number,
+            "classroom": classroom.room_number if classroom else "",
+            "building": classroom.building.value if classroom else "",
+            "is_available": not slot.is_booked
+        })
 
     return templates.TemplateResponse("admin_dashboard.html", {
         "request": request,
-        "pending_bookings": pending_bookings,
-        "confirmed_bookings": confirmed_bookings,
-        "slots": storage.slots
+        "pending_bookings": pending_list,
+        "confirmed_bookings": confirmed_list,
+        "slots": slots_list
     })
 
 
 @app.post("/admin/slots/")
-async def create_slot(slot: SlotCreate):
-    """Создать новый слот"""
-    created_slot = storage.create_slot(slot.dict())
-    return {"message": "Слот создан", "slot_id": created_slot["id"]}
+async def create_slot(slot: SlotCreate, db: Session = Depends(get_db)):
+    created_slot = DatabaseService.create_slot(db, slot.dict())
+    return {"message": "Слот создан", "slot_id": created_slot.id}
 
 
 @app.post("/admin/slots/upload-csv")
-async def upload_slots_csv(file: bytes = Form(...)):
-    """Загрузить слоты из CSV"""
+async def upload_slots_csv(file: bytes = Form(...), db: Session = Depends(get_db)):
     try:
         content = file.decode('utf-8')
         reader = csv.DictReader(io.StringIO(content))
@@ -420,10 +508,9 @@ async def upload_slots_csv(file: bytes = Form(...)):
                 "date": datetime.strptime(row['date'], '%Y-%m-%d').date(),
                 "lesson_number": int(row['lesson_number']),
                 "classroom": row['classroom'],
-                "building": row['building'],
-                "is_available": True
+                "building": row['building']
             }
-            storage.create_slot(slot_data)
+            DatabaseService.create_slot(db, slot_data)
             created_count += 1
 
         return {"message": f"Успешно загружено {created_count} слотов"}
@@ -431,51 +518,106 @@ async def upload_slots_csv(file: bytes = Form(...)):
         raise HTTPException(status_code=400, detail=f"Ошибка обработки CSV: {str(e)}")
 
 
-@app.post("/admin/bookings/{booking_id}/confirm")
-async def confirm_booking(booking_id: int):
-    """Подтвердить бронирование"""
-    booking = storage.confirm_booking(booking_id)
+@app.delete("/admin/slots/{slot_id}")
+async def delete_slot(slot_id: int, db: Session = Depends(get_db)):
+    success = DatabaseService.delete_slot(db, slot_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Слот не найден")
+    return {"message": "Слот удален"}
+
+
+@app.post("/admin/bookings/{slot_id}/confirm")
+async def confirm_booking(slot_id: int, db: Session = Depends(get_db)):
+    booking = DatabaseService.confirm_booking(db, slot_id)
     if not booking:
         raise HTTPException(status_code=404, detail="Бронирование не найдено")
     return {"message": "Бронирование подтверждено"}
 
 
 @app.post("/admin/bookings/confirm-all")
-async def confirm_all_bookings():
-    """Подтвердить все бронирования"""
-    storage.confirm_all_bookings()
-    return {"message": "Все бронирования подтверждены"}
+async def confirm_all_bookings(db: Session = Depends(get_db)):
+    count = DatabaseService.confirm_all_bookings(db)
+    return {"message": f"Все бронирования ({count}) подтверждены"}
 
 
 @app.get("/admin/bookings/export-csv")
-async def export_bookings_csv():
-    """Экспорт подтвержденных бронирований в CSV"""
-    confirmed_bookings = [b for b in storage.bookings if b["status"] == "confirmed"]
+async def export_bookings_csv(db: Session = Depends(get_db)):
+    confirmed_bookings = DatabaseService.get_confirmed_bookings(db)
 
     output = io.StringIO()
     fieldnames = ['ID', 'ФИО', 'Группа', 'Мероприятие', 'Предыдущая аудитория',
-                  'Email', 'Дата', 'Время', 'Аудитория', 'Корпус']
+                  'Email', 'Дата', 'Время', 'Аудитория', 'Корпус', 'Статус']
     writer = csv.DictWriter(output, fieldnames=fieldnames)
     writer.writeheader()
 
-    for booking in confirmed_bookings:
-        slot = storage.get_slot_by_id(booking["slot_id"])
-        if slot:
+    for slot in confirmed_bookings:
+        classroom = db.query(Classroom).filter(Classroom.id == slot.classroom_id).first()
+        if classroom:
             writer.writerow({
-                'ID': booking['id'],
-                'ФИО': booking['full_name'],
-                'Группа': booking['group'],
-                'Мероприятие': booking['event_type'],
-                'Предыдущая аудитория': booking.get('previous_classroom', ''),
-                'Email': booking['email'],
-                'Дата': slot['date'],
-                'Время': get_lesson_time(slot['lesson_number']),
-                'Аудитория': slot['classroom'],
-                'Корпус': slot['building']
+                'ID': slot.id,
+                'ФИО': slot.teacher_name,
+                'Группа': slot.group_name,
+                'Мероприятие': slot.event_type,
+                'Предыдущая аудитория': slot.previous_classroom or '',
+                'Email': slot.email,
+                'Дата': slot.date,
+                'Время': get_lesson_time(slot.lesson_number),
+                'Аудитория': classroom.room_number,
+                'Корпус': classroom.building.value,
+                'Статус': slot.status.value
             })
 
-    response = JSONResponse(content={"csv": output.getvalue()})
-    return response
+    # Возвращаем файл для скачивания
+    output.seek(0)
+    return StreamingResponse(
+        io.BytesIO(output.getvalue().encode('utf-8')),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=bookings.csv"}
+    )
+
+
+# Роут для инициализации тестовых данных
+@app.post("/init-test-data")
+async def init_test_data(db: Session = Depends(get_db)):
+    # Создаем тестовые аудитории
+    classrooms_data = [
+        {"room_number": "101", "building": BuildingEnum.ГУК},
+        {"room_number": "102", "building": BuildingEnum.ГУК},
+        {"room_number": "201", "building": BuildingEnum.УЛК},
+        {"room_number": "202", "building": BuildingEnum.УЛК},
+        {"room_number": "301", "building": BuildingEnum.ИБМ},
+    ]
+
+    for classroom_data in classrooms_data:
+        classroom = Classroom(**classroom_data)
+        db.add(classroom)
+
+    # Создаем тестовые слоты
+    today = date.today()
+    for i in range(5):
+        slot_date = today + timedelta(days=i)
+        if slot_date.weekday() < 5:  # Только будни
+            for lesson in [1, 3, 5]:
+                slot = Slot(
+                    classroom_id=1 if i % 2 == 0 else 2,
+                    date=slot_date,
+                    lesson_number=lesson,
+                    is_booked=False
+                )
+                db.add(slot)
+
+    # Создаем тестового администратора
+    admin = Admin(
+        username="admin",
+        password_hash="admin123",  # В реальном приложении используйте хеширование!
+        full_name="Администратор Системы",
+        email="admin@university.edu"
+    )
+    db.add(admin)
+
+    db.commit()
+
+    return {"message": "Тестовые данные созданы"}
 
 
 if __name__ == "__main__":
