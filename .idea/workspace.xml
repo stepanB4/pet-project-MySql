@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="9c578353-6f17-4ae7-b801-926f0f4ac4e4" name="Changes" comment="Pre-Alpha. Реализован основной функционал, связан с MySQL, (работает управление админа, базовый пользовательский функионал).">
+    <list default="true" id="9c578353-6f17-4ae7-b801-926f0f4ac4e4" name="Changes" comment="Alpha. Реализован экспорт CSV, мелкие баги убраны (с отображением во фронтенде)">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app.py" beforeDir="false" afterPath="$PROJECT_DIR$/app.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/database.py" beforeDir="false" afterPath="$PROJECT_DIR$/database.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/templates/admin_dashboard.html" beforeDir="false" afterPath="$PROJECT_DIR$/templates/admin_dashboard.html" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/templates/admin_login.html" beforeDir="false" afterPath="$PROJECT_DIR$/templates/admin_login.html" afterDir="false" />
     </list>
@@ -53,6 +53,7 @@
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
     "Python.app.executor": "Run",
+    "Python.database.executor": "Run",
     "Python.main.executor": "Run",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
@@ -85,7 +86,23 @@
       <option name="project" value="LOCAL" />
       <updated>1765219441840</updated>
     </task>
-    <option name="localTasksCounter" value="2" />
+    <task id="LOCAL-00002" summary="Alpha. Реализован экспорт CSV, мелкие баги убраны (с отображением во фронтенде)">
+      <option name="closed" value="true" />
+      <created>1765225842154</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1765225842154</updated>
+    </task>
+    <task id="LOCAL-00003" summary="Alpha. Реализован экспорт CSV, мелкие баги убраны (с отображением во фронтенде)">
+      <option name="closed" value="true" />
+      <created>1765226012136</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1765226012136</updated>
+    </task>
+    <option name="localTasksCounter" value="4" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -99,7 +116,7 @@
                   <entry key="branch">
                     <value>
                       <list>
-                        <option value="main" />
+                        <option value="origin/dev" />
                       </list>
                     </value>
                   </entry>
@@ -113,6 +130,7 @@
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Pre-Alpha. Реализован основной функционал, связан с MySQL, (работает управление админа, базовый пользовательский функионал)." />
-    <option name="LAST_COMMIT_MESSAGE" value="Pre-Alpha. Реализован основной функционал, связан с MySQL, (работает управление админа, базовый пользовательский функионал)." />
+    <MESSAGE value="Alpha. Реализован экспорт CSV, мелкие баги убраны (с отображением во фронтенде)" />
+    <option name="LAST_COMMIT_MESSAGE" value="Alpha. Реализован экспорт CSV, мелкие баги убраны (с отображением во фронтенде)" />
   </component>
 </project>

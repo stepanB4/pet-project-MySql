@@ -219,7 +219,7 @@
                     <label class="block text-sm font-medium text-gray-700 mb-1">Корпус</label>
                     <select name="building" required
                             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="ГЗ">ГЗ</option>
+                        <option value="ГУК">ГУК</option>
                         <option value="УЛК">УЛК</option>
                         <option value="Энерго">Энерго</option>
                         <option value="СМ">СМ</option>
@@ -367,21 +367,30 @@
                     body: formData
                 });
 
-                const result = await response.json();
+                // Пытаемся получить JSON ответ
+                let result;
+                try {
+                    result = await response.json();
+                } catch (jsonError) {
+                    throw new Error(`Сервер вернул некорректный JSON: ${jsonError.message}`);
+                }
 
                 if (response.ok) {
-                    alert(result.message);
+                    alert(result.message + (result.details ? '\n' + result.details : ''));
                     fileInput.value = '';
                     showSection('slots');
                     setTimeout(() => location.reload(), 500);
                 } else {
-                    alert('Ошибка: ' + result.detail);
+                    // Показываем детали ошибки из response
+                    console.error('Ошибка сервера:', result);
+                    const errorDetail = result.detail || result.message || JSON.stringify(result);
+                    alert('Ошибка загрузки: ' + errorDetail);
                 }
             } catch (error) {
-                alert('Ошибка загрузки файла');
+                console.error('Ошибка загрузки файла:', error);
+                alert('Ошибка сети: ' + error.message);
             }
         });
-
         // Удаление слота
         async function deleteSlot(slotId) {
             if (!confirm('Удалить этот слот?')) return;

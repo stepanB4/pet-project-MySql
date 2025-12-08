@@ -44,43 +44,38 @@
     </div>
 
     <script>
-        document.getElementById('upload-csv-form').addEventListener('submit', async function(e) {
+        document.getElementById('login-form').addEventListener('submit', async function(e) {
             e.preventDefault();
 
-            const fileInput = document.getElementById('csv-file');
-            if (!fileInput.files[0]) return;
+            const formData = {
+                username: document.getElementById('username').value.trim(),
+                password: document.getElementById('password').value
+            };
 
-            const formData = new FormData();
-            formData.append('file', fileInput.files[0]);
+            console.log("Отправка данных:", formData);  // Добавьте эту строку
 
             try {
-                const response = await fetch('/admin/slots/upload-csv', {
-                    method: 'POST',
-                    body: formData
+                const response = await fetch('/admin/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData)
                 });
 
-                // Пытаемся получить JSON ответ
-                let result;
-                try {
-                    result = await response.json();
-                } catch (jsonError) {
-                    throw new Error(`Сервер вернул некорректный JSON: ${jsonError.message}`);
-                }
+                console.log("Ответ сервера:", response.status);  // И эту
 
                 if (response.ok) {
-                    alert(result.message + (result.details ? '\n' + result.details : ''));
-                    fileInput.value = '';
-                    showSection('slots');
-                    setTimeout(() => location.reload(), 500);
+                    const data = await response.json();
+                    window.location.href = data.redirect;
                 } else {
-                    // Показываем детали ошибки из response
-                    console.error('Ошибка сервера:', result);
-                    const errorDetail = result.detail || result.message || JSON.stringify(result);
-                    alert('Ошибка загрузки: ' + errorDetail);
+                    const error = await response.json();
+                    console.error("Ошибка сервера:", error);
+                    alert('Неверные учетные данные. Проверьте логи в PyCharm.');
                 }
             } catch (error) {
-                console.error('Ошибка загрузки файла:', error);
-                alert('❌ Ошибка сети: ' + error.message);
+                console.error('Ошибка сети:', error);
+                alert('Ошибка сети: ' + error.message);
             }
         });
 
