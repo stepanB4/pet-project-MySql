@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Бронирование компьютерных классов</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .calendar-day {
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        .calendar-day:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .calendar-day.has-slots {
+            background-color: #dbeafe;
+            border-color: #3b82f6;
+        }
+        .calendar-day.today {
+            background-color: #fef3c7;
+            border-color: #f59e0b;
+        }
+        .calendar-day.past {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .week-row {
+            transition: all 0.2s ease;
+        }
+        .week-row:hover {
+            background-color: #f8fafc;
+        }
+        .slot-card {
+            transition: all 0.3s ease;
+        }
+        .slot-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Шапка -->
+        <header class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">Бронирование компьютерных классов</h1>
+            <p class="text-gray-600">Выберите месяц, день или неделю для бронирования</p>
+            <div class="mt-4">
+                <a href="/admin/login" class="text-blue-600 hover:text-blue-800 text-sm">
+                    Вход для администратора
+                </a>
+            </div>
+        </header>
+
+        <!-- Календарь месяца -->
+        <div class="bg-white rounded-lg shadow p-6 mb-8">
+            <!-- Навигация по месяцам -->
+            <div class="flex items-center justify-between mb-6">
+                <button id="prev-month" class="p-2 rounded-full hover:bg-gray-100">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                    </svg>
+                </button>
+
+                <div class="text-center">
+                    <h2 id="current-month" class="text-2xl font-semibold text-gray-800">
+                        {{ month_name }} {{ current_year }}
+                    </h2>
+
+                </div>
+
+                <button id="next-month" class="p-2 rounded-full hover:bg-gray-100">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Дни недели -->
+            <div class="grid grid-cols-8 gap-1 mb-2">
+                <div class="text-center font-medium text-gray-500 p-2"></div>
+                <div class="text-center font-medium text-gray-500 p-2">Пн</div>
+                <div class="text-center font-medium text-gray-500 p-2">Вт</div>
+                <div class="text-center font-medium text-gray-500 p-2">Ср</div>
+                <div class="text-center font-medium text-gray-500 p-2">Чт</div>
+                <div class="text-center font-medium text-gray-500 p-2">Пт</div>
+                <div class="text-center font-medium text-gray-500 p-2">Сб</div>
+                <div class="text-center font-medium text-gray-500 p-2">Вс</div>
+            </div>
+
+            <!-- Календарь -->
+            <div id="calendar-container">
+                {% for week in calendar %}
+                <div class="grid grid-cols-8 gap-1 mb-1 week-row" data-week-index="{{ loop.index0 }}">
+                    <button class="week-selector bg-gray-100 rounded p-2 text-sm font-medium text-gray-700 hover:bg-gray-200 transition-colors"
+                            onclick="selectWeek({{ loop.index0 }})"
+                            title="Выбрать всю неделю">
+                        Неделя {{ loop.index }}
+                    </button>
+
+                    {% for day_data in week %}
+                        {% if day_data %}
+                            <div class="calendar-day border rounded p-2 text-center relative
+                                {% if day_data.has_slots %}has-slots{% endif %}
+                                {% if day_data.is_today %}today{% endif %}
+                                {% if day_data.is_past %}past{% endif %}"
+                                onclick="{% if not day_data.is_past %}selectDay('{{ day_data.date }}'){% endif %}">
+
+                                <div class="font-medium">{{ day_data.day }}</div>
+
+                                {% if day_data.has_slots %}
+                                    <div class="text-xs text-blue-600 mt-1">
+                                        {{ day_data.slots_count }} слот(ов)
+                                    </div>
+                                {% elif not day_data.is_past %}
+                                    <div class="text-xs text-gray-400 mt-1">Нет слотов</div>
+                                {% endif %}
+
+                                {% if day_data.is_today %}
+                                    <div class="absolute top-1 right-1 w-2 h-2 bg-orange-500 rounded-full"></div>
+                                {% endif %}
+                            </div>
+                        {% else %}
+                            <div class="p-2"></div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Легенда -->
+            <div class="mt-6 flex flex-wrap gap-4 justify-center text-sm">
+                <div class="flex items-center">
+                    <div class="w-4 h-4 bg-blue-100 border border-blue-300 rounded mr-2"></div>
+                    <span>Есть доступные слоты</span>
+                </div>
+                <div class="flex items-center">
+                    <div class="w-4 h-4 bg-yellow-100 border border-yellow-300 rounded mr-2"></div>
+                    <span>Сегодня</span>
+                </div>
+                <div class="flex items-center">
+                    <div class="w-4 h-4 bg-gray-100 border border-gray-300 rounded mr-2"></div>
+                    <span>Нет слотов</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Информационная панель -->
+        <div id="info-panel" class="bg-white rounded-lg shadow p-6 mb-6 hidden">
+            <h3 id="selected-date" class="text-xl font-semibold mb-4"></h3>
+
+            <!-- Для выбора дня -->
+            <div id="day-view" class="hidden">
+                <div class="flex justify-between items-center mb-4">
+                    <h4 class="font-medium text-gray-700">Доступные слоты на выбранный день:</h4>
+                    <button onclick="closeInfoPanel()" class="text-gray-500 hover:text-gray-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+                <div id="day-slots-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <!-- Слоты загружаются динамически -->
+                </div>
+            </div>
+
+            <!-- Для выбора недели -->
+            <div id="week-view" class="hidden">
+                <div class="flex justify-between items-center mb-4">
+                    <h4 class="font-medium text-gray-700">Доступные слоты на неделю:</h4>
+                    <button onclick="closeInfoPanel()" class="text-gray-500 hover:text-gray-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+                <div id="week-slots-container">
+                    <!-- Слоты по дням недели загружаются динамически -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Модальное окно бронирования -->
+        <div id="booking-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+            <div class="bg-white rounded-lg p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
+                <h3 class="text-xl font-bold mb-4">Бронирование слота</h3>
+                <div id="slot-info" class="mb-4 p-3 bg-blue-50 rounded-lg">
+                    <!-- Информация о выбранном слоте -->
+                </div>
+
+                <form id="booking-form">
+                    <input type="hidden" id="booking-slot-id">
+
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">ФИО *</label>
+                            <input type="text" id="full-name" required
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Группа *</label>
+                            <input type="text" id="group" required
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Контрольное мероприятие *</label>
+                            <input type="text" id="event-type" required
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Аудитория (откуда переходите)</label>
+                            <input type="text" id="previous-classroom"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                            <input type="email" id="email" required
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                    </div>
+
+                    <div class="mt-6 flex gap-3">
+                        <button type="submit" class="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            Забронировать
+                        </button>
+                        <button type="button" id="cancel-booking" class="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500">
+                            Отмена
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Текущие данные
+        let currentDate = new Date('{{ today }}');
+        let currentCalendar = {{ calendar|tojson }};
+        let currentYear = {{ current_year }};
+        let currentMonth = {{ current_month }};
+
+        // DOM элементы
+        const currentMonthElement = document.getElementById('current-month');
+        const calendarContainer = document.getElementById('calendar-container');
+        const infoPanel = document.getElementById('info-panel');
+        const dayView = document.getElementById('day-view');
+        const weekView = document.getElementById('week-view');
+        const selectedDateElement = document.getElementById('selected-date');
+        const daySlotsContainer = document.getElementById('day-slots-container');
+        const weekSlotsContainer = document.getElementById('week-slots-container');
+        const bookingModal = document.getElementById('booking-modal');
+        const bookingForm = document.getElementById('booking-form');
+        const slotInfoElement = document.getElementById('slot-info');
+        const monthInfoElement = document.getElementById('month-info');
+
+        // Инициализация
+        document.addEventListener('DOMContentLoaded', function() {
+            updateMonthInfo();
+            setupEventListeners();
+        });
+
+        function setupEventListeners() {
+            // Навигация по месяцам
+            document.getElementById('prev-month').addEventListener('click', () => changeMonth(-1));
+            document.getElementById('next-month').addEventListener('click', () => changeMonth(1));
+
+            // Модальное окно
+            document.getElementById('cancel-booking').addEventListener('click', closeBookingModal);
+            bookingForm.addEventListener('submit', submitBooking);
+        }
+
+        async function changeMonth(delta) {
+            currentMonth += delta;
+            if (currentMonth > 12) {
+                currentMonth = 1;
+                currentYear += 1;
+            } else if (currentMonth < 1) {
+                currentMonth = 12;
+                currentYear -= 1;
+            }
+
+            await loadCalendar();
+        }
+
+        async function loadCalendar() {
+            try {
+                const response = await fetch(`/api/calendar/${currentYear}/${currentMonth}`);
+                const data = await response.json();
+
+                currentCalendar = data.calendar;
+                updateMonthElement(data.month_name, currentYear);
+                renderCalendar();
+                updateMonthInfo();
+            } catch (error) {
+                console.error('Ошибка загрузки календаря:', error);
+                alert('Ошибка загрузки календаря');
+            }
+        }
+
+        function updateMonthElement(monthName, year) {
+            currentMonthElement.textContent = `${monthName} ${year}`;
+        }
+
+        function renderCalendar() {
+            let html = '';
+
+            currentCalendar.forEach((week, weekIndex) => {
+                html += `
+                    <div class="grid grid-cols-8 gap-1 mb-1 week-row" data-week-index="${weekIndex}">
+                        <button class="week-selector bg-gray-100 rounded p-2 text-sm font-medium text-gray-700 hover:bg-gray-200 transition-colors"
+                                onclick="selectWeek(${weekIndex})"
+                                title="Выбрать всю неделю">
+                            Неделя ${weekIndex + 1}
+                        </button>
+                `;
+
+                week.forEach(dayData => {
+                    if (dayData) {
+                        const dayDate = new Date(dayData.date);
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        const isPast = dayDate < today;
+
+                        html += `
+                            <div class="calendar-day border rounded p-2 text-center relative
+                                ${dayData.has_slots ? 'has-slots' : ''}
+                                ${dayData.is_today ? 'today' : ''}
+                                ${isPast ? 'past' : ''}"
+                                onclick="${isPast ? '' : `selectDay('${dayData.date}')`}">
+
+                                <div class="font-medium">${dayData.day}</div>
+
+                                ${dayData.has_slots ?
+                                    `<div class="text-xs text-blue-600 mt-1">${dayData.slots_count} слот(ов)</div>` :
+                                    (!isPast ? `<div class="text-xs text-gray-400 mt-1">Нет слотов</div>` : '')
+                                }
+
+                                ${dayData.is_today ?
+                                    '<div class="absolute top-1 right-1 w-2 h-2 bg-orange-500 rounded-full"></div>' : ''
+                                }
+                            </div>
+                        `;
+                    } else {
+                        html += '<div class="p-2"></div>';
+                    }
+                });
+
+                html += '</div>';
+            });
+
+            calendarContainer.innerHTML = html;
+        }
+
+        async function updateMonthInfo() {
+             const response = await fetch(`/api/slots/month/${currentYear}/${currentMonth}`);
+             const monthData = await response.json();
+
+             const totalSlots = monthData.total_slots || 0;
+             const daysWithSlots = monthData.days_with_slots || 0;
+
+        }
+
+        async function selectDay(dateString) {
+            const date = new Date(dateString);
+            selectedDateElement.textContent = `Выбран день: ${date.toLocaleDateString('ru-RU', {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric'
+            })}`;
+
+            // Показываем информационную панель
+            infoPanel.classList.remove('hidden');
+            dayView.classList.remove('hidden');
+            weekView.classList.add('hidden');
+
+            // Загружаем слоты на день
+            await loadDaySlots(dateString);
+        }
+
+        async function selectWeek(weekIndex) {
+            // Находим первый день недели (понедельник)
+            const week = currentCalendar[weekIndex];
+            const firstDay = week.find(day => day !== null);
+
+            if (!firstDay) return;
+
+            const startDate = new Date(firstDay.date);
+
+            // Находим понедельник этой недели
+            const dayOfWeek = startDate.getDay();
+            const diff = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // 0 = воскресенье, 1 = понедельник, etc.
+            const monday = new Date(startDate);
+            monday.setDate(startDate.getDate() - diff);
+
+            selectedDateElement.textContent = `Выбрана неделя: ${monday.toLocaleDateString('ru-RU', {
+                day: 'numeric',
+                month: 'long'
+            })} - ${new Date(monday.getTime() + 6 * 24 * 60 * 60 * 1000).toLocaleDateString('ru-RU', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric'
+            })}`;
+
+            // Показываем информационную панель
+            infoPanel.classList.remove('hidden');
+            dayView.classList.add('hidden');
+            weekView.classList.remove('hidden');
+
+            // Загружаем слоты на неделю
+            await loadWeekSlots(monday.toISOString().split('T')[0]);
+        }
+
+        async function loadDaySlots(dateString) {
+            daySlotsContainer.innerHTML = `
+                <div class="col-span-full text-center py-8">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                    <p class="mt-2 text-gray-600">Загрузка слотов...</p>
+                </div>
+            `;
+
+            try {
+                const response = await fetch(`/api/slots/date/${dateString}`);
+                const slots = await response.json();
+
+                if (slots.length === 0) {
+                    daySlotsContainer.innerHTML = `
+                        <div class="col-span-full text-center py-8">
+                            <div class="text-gray-500 text-lg mb-2">Нет доступных слотов на этот день</div>
+                            <div class="text-gray-400">Выберите другой день</div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                let html = '';
+                slots.forEach(slot => {
+                    const date = new Date(slot.date);
+                    html += `
+                        <div class="slot-card bg-white rounded-lg shadow p-4 border border-gray-200 cursor-pointer"
+                             onclick="openBookingModal(${slot.id}, '${slot.lesson_time}', '${date.toISOString().split('T')[0]}', '${slot.classroom}', '${slot.building}')">
+                            <div class="flex justify-between items-start mb-3">
+                                <div class="text-lg font-semibold text-gray-800">${slot.lesson_time}</div>
+                                <span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">Свободно</span>
+                            </div>
+                            <div class="space-y-1 text-sm text-gray-600">
+                                <div>Аудитория: <span class="font-medium">${slot.classroom}</span></div>
+                                <div>Корпус: <span class="font-medium">${slot.building}</span></div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                daySlotsContainer.innerHTML = html;
+            } catch (error) {
+                daySlotsContainer.innerHTML = `
+                    <div class="col-span-full text-center py-8 text-red-600">
+                        Ошибка загрузки слотов
+                    </div>
+                `;
+            }
+        }
+
+        async function loadWeekSlots(startDateString) {
+            weekSlotsContainer.innerHTML = `
+                <div class="text-center py-8">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                    <p class="mt-2 text-gray-600">Загрузка слотов...</p>
+                </div>
+            `;
+
+            try {
+                const response = await fetch(`/api/slots/week/${startDateString}`);
+                const weekData = await response.json();
+
+                let html = '';
+                let hasSlots = false;
+
+                // Создаем массив дат недели
+                const startDate = new Date(startDateString);
+                const weekDates = [];
+                for (let i = 0; i < 7; i++) {
+                    const date = new Date(startDate);
+                    date.setDate(startDate.getDate() + i);
+                    weekDates.push(date);
+                }
+
+                for (let i = 0; i < 7; i++) {
+                    const currentDate = weekDates[i];
+                    const dateKey = currentDate.toISOString().split('T')[0];
+                    const daySlots = weekData.slots[dateKey] || [];
+
+                    html += `
+                        <div class="mb-6">
+                            <h5 class="font-semibold text-gray-800 mb-2">
+                                ${currentDate.toLocaleDateString('ru-RU', {
+                                    weekday: 'long',
+                                    day: 'numeric',
+                                    month: 'long'
+                                })}
+                            </h5>
+                    `;
+
+                    if (daySlots.length > 0) {
+                        hasSlots = true;
+                        html += '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">';
+
+                        daySlots.forEach(slot => {
+                            html += `
+                                <div class="slot-card bg-white rounded-lg shadow p-3 border border-gray-200 cursor-pointer"
+                                     onclick="openBookingModal(${slot.id}, '${slot.lesson_time}', '${dateKey}', '${slot.classroom}', '${slot.building}')">
+                                    <div class="flex justify-between items-start mb-2">
+                                        <div class="font-medium text-gray-800">${slot.lesson_time}</div>
+                                        <span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">Свободно</span>
+                                    </div>
+                                    <div class="text-sm text-gray-600">
+                                        <div>Аудитория: ${slot.classroom}</div>
+                                        <div>Корпус: ${slot.building}</div>
+                                    </div>
+                                </div>
+                            `;
+                        });
+
+                        html += '</div>';
+                    } else {
+                        html += '<div class="text-gray-400 text-sm">Нет доступных слотов</div>';
+                    }
+
+                    html += '</div>';
+                }
+
+                if (!hasSlots) {
+                    html = `
+                        <div class="text-center py-8">
+                            <div class="text-gray-500 text-lg mb-2">Нет доступных слотов на эту неделю</div>
+                            <div class="text-gray-400">Выберите другую неделю</div>
+                        </div>
+                    `;
+                }
+
+                weekSlotsContainer.innerHTML = html;
+            } catch (error) {
+                weekSlotsContainer.innerHTML = `
+                    <div class="text-center py-8 text-red-600">
+                        Ошибка загрузки слотов
+                    </div>
+                `;
+            }
+        }
+
+        function closeInfoPanel() {
+            infoPanel.classList.add('hidden');
+        }
+
+        function openBookingModal(slotId, lessonTime, dateString, classroom, building) {
+            const date = new Date(dateString);
+            slotInfoElement.innerHTML = `
+                <div class="font-medium">${date.toLocaleDateString('ru-RU')}, ${lessonTime}</div>
+                <div class="text-sm">Аудитория: ${classroom}, Корпус: ${building}</div>
+            `;
+
+            document.getElementById('booking-slot-id').value = slotId;
+            bookingModal.classList.remove('hidden');
+            bookingModal.classList.add('flex');
+        }
+
+        function closeBookingModal() {
+            bookingModal.classList.add('hidden');
+            bookingModal.classList.remove('flex');
+            bookingForm.reset();
+        }
+
+        async function submitBooking(event) {
+            event.preventDefault();
+
+            const bookingData = {
+                slot_id: parseInt(document.getElementById('booking-slot-id').value),
+                full_name: document.getElementById('full-name').value,
+                group: document.getElementById('group').value,
+                event_type: document.getElementById('event-type').value,
+                previous_classroom: document.getElementById('previous-classroom').value,
+                email: document.getElementById('email').value
+            };
+
+            try {
+                const response = await fetch('/api/bookings/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(bookingData)
+                });
+
+                if (response.ok) {
+                    alert('Бронирование успешно создано! Ожидайте подтверждения на email.');
+                    closeBookingModal();
+                    closeInfoPanel();
+
+                    // Обновляем календарь
+                    await loadCalendar();
+                } else {
+                    const error = await response.json();
+                    alert('Ошибка: ' + error.detail);
+                }
+            } catch (error) {
+                alert('Ошибка сети: ' + error.message);
+            }
+        }
+
+        // Глобальные функции для onclick
+        window.openBookingModal = openBookingModal;
+    </script>
+</body>
+</html>
