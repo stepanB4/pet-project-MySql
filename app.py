@@ -13,7 +13,6 @@ import io
 import calendar
 import secrets
 
-# Импортируем модуль базы данных
 from database import (
     get_db, SessionLocal,
     Classroom, Slot, Admin,
@@ -21,9 +20,8 @@ from database import (
     get_lesson_time, create_tables
 )
 
-# Создаем таблицы
-create_tables()
 
+create_tables()
 app = FastAPI(title="Booking System")
 templates = Jinja2Templates(directory="templates")
 security = HTTPBasic()
@@ -71,7 +69,7 @@ class AdminLogin(BaseModel):
     password: str
 
 
-# Вспомогательные функции
+# Функции для календаря
 def get_week_dates(start_date: date):
     return [start_date + timedelta(days=i) for i in range(7)]
 
@@ -100,7 +98,7 @@ def get_month_calendar(year: int, month: int):
     return calendar_data
 
 
-# Функции работы с базой данных
+# Функции для работы с БДшкой
 class DatabaseService:
     @staticmethod
     def get_available_slots_by_date(db: Session, target_date: date):
@@ -514,30 +512,26 @@ async def upload_slots_csv(
         file: UploadFile = File(...),
         db: Session = Depends(get_db)
 ):
-    """Загрузить слоты из CSV"""
+    #Чекните ошибку BOM кодировка даты !!! (Даня)
     try:
         print(f"🔍 Получен файл: {file.filename}, размер: {file.size}")
-
-        # Читаем файл
         content_bytes = await file.read()
 
-        # Декодируем с учетом BOM
+        # BOM
         content_str = content_bytes.decode('utf-8-sig')
         content_str = content_str.strip()
 
-        # Удаляем BOM если остался
+
         if content_str.startswith('\ufeff'):
             content_str = content_str[1:].strip()
 
-        print(f"🔍 Содержимое:\n{content_str}")
-
-        # Разделяем на строки и убираем пустые
+        print(f"Содержимое:\n{content_str}")
         lines = [line.strip() for line in content_str.splitlines() if line.strip()]
 
         if len(lines) < 2:
             raise HTTPException(status_code=400, detail="CSV файл пуст")
 
-        # Создаем CSV reader
+        # CSV reader (Стёпа)
         csv_content = '\n'.join(lines)
         csv_file = io.StringIO(csv_content)
         reader = csv.DictReader(csv_file)
@@ -545,20 +539,17 @@ async def upload_slots_csv(
         if not reader.fieldnames:
             raise HTTPException(status_code=400, detail="CSV не содержит заголовков")
 
-        print(f"🔍 Заголовки: {reader.fieldnames}")
+        print(f"Заголовки: {reader.fieldnames}")
 
         created_count = 0
         errors = []
 
         for row_num, row in enumerate(reader, start=1):
-            print(f"📝 Строка {row_num}: {row}")
+            print(f"Строка {row_num}: {row}")
 
             try:
-                # Пропускаем пустые строки
                 if not any(str(value).strip() for value in row.values()):
                     continue
-
-                # Получаем значения (без привязки к конкретным названиям колонок)
                 # Просто берем первые 4 колонки в порядке заголовков
                 headers = list(row.keys())
                 if len(headers) < 4:
@@ -573,9 +564,8 @@ async def upload_slots_csv(
                 print(
                     f"  Извлечено: дата='{date_str}', пара='{lesson_str}', аудитория='{classroom}', корпус='{building}'")
 
-                # Парсим дату в формате ДД.ММ.ГГГГ
+                # Парсинг даты (Кирилл)
                 try:
-                    # Заменяем точки на дефисы для стандартного формата
                     if '.' in date_str:
                         day, month, year = date_str.split('.')
                         date_str = f"{year}-{month}-{day}"
@@ -586,7 +576,7 @@ async def upload_slots_csv(
                     errors.append(f"Строка {row_num}: неверный формат даты '{date_str}'")
                     continue
 
-                # Парсим номер пары
+                # Парсинг номера пары (КИрилл)
                 try:
                     lesson_num = int(lesson_str)
                     if not 1 <= lesson_num <= 8:
@@ -596,17 +586,15 @@ async def upload_slots_csv(
                     errors.append(f"Строка {row_num}: номер пары должен быть числом")
                     continue
 
-                # Нормализуем корпус
                 building_normalized = building.upper().strip()
 
-                # Проверяем корпус
                 try:
                     building_enum = BuildingEnum(building_normalized)
                 except ValueError:
                     errors.append(f"Строка {row_num}: неверный корпус '{building}'")
                     continue
 
-                # Проверяем дубликаты
+                # Проверка на дубликаты (Кирилл)
                 existing = db.query(Slot).join(Classroom).filter(
                     and_(
                         Slot.date == slot_date,
@@ -617,10 +605,9 @@ async def upload_slots_csv(
                 ).first()
 
                 if existing:
-                    print(f"  ⚠️  Слот уже существует")
+                    print(f"Слот уже существует")
                     continue
 
-                # Создаем слот
                 slot_data = {
                     "date": slot_date,
                     "lesson_number": lesson_num,
@@ -676,7 +663,6 @@ async def confirm_all_bookings(db: Session = Depends(get_db)):
 
 @app.get("/admin/bookings/export-csv")
 async def export_bookings_csv(db: Session = Depends(get_db)):
-    """Экспорт подтвержденных бронирований в CSV (с колонкой 'Пара' вместо 'Время')"""
     try:
         confirmed_bookings = DatabaseService.get_confirmed_bookings(db)
 
@@ -702,7 +688,7 @@ async def export_bookings_csv(db: Session = Depends(get_db)):
                 'Предыдущая аудитория': slot.previous_classroom or '',
                 'Email': slot.email or '',
                 'Дата': slot.date,
-                'Пара': slot.lesson_number,  # Изменено: номер пары вместо времени
+                'Пара': slot.lesson_number,
                 'Аудитория': classroom.room_number,
                 'Корпус': classroom.building.value,
                 'Статус': slot.status.value
@@ -726,51 +712,6 @@ async def export_bookings_csv(db: Session = Depends(get_db)):
             status_code=500,
             detail=f"Ошибка экспорта: {str(e)}"
         )
-
-
-
-# Роут для инициализации тестовых данных
-@app.post("/init-test-data")
-async def init_test_data(db: Session = Depends(get_db)):
-    # Создаем тестовые аудитории
-    classrooms_data = [
-        {"room_number": "101", "building": BuildingEnum.ГУК},
-        {"room_number": "102", "building": BuildingEnum.ГУК},
-        {"room_number": "201", "building": BuildingEnum.УЛК},
-        {"room_number": "202", "building": BuildingEnum.УЛК},
-        {"room_number": "301", "building": BuildingEnum.ИБМ},
-    ]
-
-    for classroom_data in classrooms_data:
-        classroom = Classroom(**classroom_data)
-        db.add(classroom)
-
-    # Создаем тестовые слоты
-    today = date.today()
-    for i in range(5):
-        slot_date = today + timedelta(days=i)
-        if slot_date.weekday() < 5:  # Только будни
-            for lesson in [1, 3, 5]:
-                slot = Slot(
-                    classroom_id=1 if i % 2 == 0 else 2,
-                    date=slot_date,
-                    lesson_number=lesson,
-                    is_booked=False
-                )
-                db.add(slot)
-
-    # Создаем тестового администратора
-    admin = Admin(
-        username="admin",
-        password_hash="admin123",  # В реальном приложении используйте хеширование!
-        full_name="Администратор Системы",
-        email="admin@university.edu"
-    )
-    db.add(admin)
-
-    db.commit()
-
-    return {"message": "Тестовые данные созданы"}
 
 
 if __name__ == "__main__":
