@@ -47,10 +47,21 @@
         <header class="text-center mb-8">
             <h1 class="text-3xl font-bold text-gray-800 mb-2">Бронирование компьютерных классов</h1>
             <p class="text-gray-600">Выберите месяц, день или неделю для бронирования</p>
-            <div class="mt-4">
-                <a href="/admin/login" class="text-blue-600 hover:text-blue-800 text-sm">
-                    Вход для администратора
-                </a>
+            <div class="flex items-center space-x-4">
+                {% if is_admin %}
+                    <a href="/admin/dashboard" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors shadow-sm">
+                        Панель администратора
+                    </a>
+                    <a href="/admin/logout" 
+                       onclick="return confirm('Вы действительно хотите выйти из системы?');" 
+                       class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-md text-sm font-medium transition-colors">
+                        Выйти
+                    </a>
+                {% else %}
+                    <a href="/admin/login" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors shadow-sm">
+                        Вход для администратора
+                    </a>
+                {% endif %}
             </div>
         </header>
 

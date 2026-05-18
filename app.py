@@ -346,6 +346,7 @@ class DatabaseService:
 # Роуты для преподавателя
 @app.get("/", response_class=HTMLResponse)
 async def teacher_calendar(request: Request, db: Session = Depends(get_db)):
+    # --- ВАША ТЕКУЩАЯ ЛОГИКА КАЛЕНДАРЯ (Оставляем без изменений) ---
     today = date.today()
     month_calendar = get_month_calendar(today.year, today.month)
 
@@ -361,13 +362,28 @@ async def teacher_calendar(request: Request, db: Session = Depends(get_db)):
 
     russian_month_name = get_russian_month_name(today.month)
 
+    # --- НОВАЯ ЛОГИКА АВТОРИЗАЦИИ ---
+    is_admin = False
+    token = request.cookies.get("admin_access_token") # Имя куки
+    if token:
+        try:
+            # Декодируем токен (используйте те же SECRET_KEY и ALGORITHM, что и при создании)
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            if "sub" in payload:
+                is_admin = True
+        except jwt.PyJWTError:
+            is_admin = False # Токен невалиден или истёк
+    # ---------------------------------
+
+    # Возвращаем шаблон со всеми данными, добавив is_admin
     return templates.TemplateResponse("teacher_calendar1.html", {
         "request": request,
         "today": today.isoformat(),
         "current_year": today.year,
         "current_month": today.month,
         "month_name": russian_month_name,
-        "calendar": month_calendar
+        "calendar": month_calendar,
+        "is_admin": is_admin  # <-- Добавили новый флаг сюда
     })
 
 
@@ -471,9 +487,10 @@ async def create_booking(booking: BookingCreate, db: Session = Depends(get_db)):
     return {"message": "Бронирование создано", "booking_id": created_booking.id}
 
 @app.get("/admin/logout")
-async def admin_logout(response: Response):
-    response.delete_cookie(COOKIE_NAME)
-    return RedirectResponse(url="/admin/login", status_code=status.HTTP_303_SEE_OTHER)
+async def admin_logout():
+    response = RedirectResponse(url="/admin/login", status_code=status.HTTP_302_FOUND)
+    response.delete_cookie(key="admin_access_token", path="/")
+    return response
 
 # Роуты для администратора
 @app.get("/admin/login", response_class=HTMLResponse)
