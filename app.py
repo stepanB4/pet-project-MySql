@@ -312,7 +312,6 @@ async def teacher_calendar(request: Request, db: Session = Depends(get_db)):
 
     russian_month_name = get_russian_month_name(today.month)
 
-    return HTMLResponse(content="<h1>Hello, world!</h1>")
     return templates.TemplateResponse("teacher_calendar1.html", {
         "request": request,
         "today": today.isoformat(),
