@@ -12,6 +12,8 @@ import csv
 import io
 import calendar
 import secrets
+import jwt
+from fastapi import Response
 
 from database import (
     get_db, SessionLocal,
@@ -33,6 +35,52 @@ RUSSIAN_MONTHS = {
     9: "Сентябрь", 10: "Октябрь", 11: "Ноябрь", 12: "Декабрь"
 }
 
+SECRET_KEY = "SUPER_SECRET_KEY_KEEP_IT_SAFE"  # В продакшене вынесите в os.getenv()
+ALGORITHM = "HS256"
+COOKIE_NAME = "admin_access_token"
+
+# Функция для создания токена
+def create_access_token(data: dict, expires_delta: timedelta = timedelta(hours=2)):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + expires_delta
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+# Зависимость для HTML-страниц (Редирект на логин при ошибке)
+def get_current_admin_html(request: Request, db: Session = Depends(get_db)):
+    token = request.cookies.get(COOKIE_NAME)
+    if not token:
+        raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": "/admin/login"})
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": "/admin/login"})
+        
+        admin = db.query(Admin).filter(Admin.username == username).first()
+        if admin is None:
+            raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": "/admin/login"})
+        return admin
+    except jwt.PyJWTError:
+        raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": "/admin/login"})
+
+# Зависимость для API-эндпоинтов (401 ошибка при ошибке)
+def get_current_admin_api(request: Request, db: Session = Depends(get_db)):
+    token = request.cookies.get(COOKIE_NAME)
+    if not token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Не авторизован")
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Неверный токен")
+        
+        admin = db.query(Admin).filter(Admin.username == username).first()
+        if admin is None:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Администратор не найден")
+        return admin
+    except jwt.PyJWTError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Токен истек или недействителен")
 
 def get_russian_month_name(month_number: int) -> str:
     return RUSSIAN_MONTHS.get(month_number, "Неизвестный месяц")
@@ -422,6 +470,10 @@ async def create_booking(booking: BookingCreate, db: Session = Depends(get_db)):
 
     return {"message": "Бронирование создано", "booking_id": created_booking.id}
 
+@app.get("/admin/logout")
+async def admin_logout(response: Response):
+    response.delete_cookie(COOKIE_NAME)
+    return RedirectResponse(url="/admin/login", status_code=status.HTTP_303_SEE_OTHER)
 
 # Роуты для администратора
 @app.get("/admin/login", response_class=HTMLResponse)
@@ -430,17 +482,40 @@ async def admin_login_page(request: Request):
 
 
 @app.post("/admin/login")
-async def admin_login(login_data: AdminLogin, db: Session = Depends(get_db)):
+async def admin_login(
+    login_data: AdminLogin, 
+    response: Response, 
+    db: Session = Depends(get_db)
+):
     admin = DatabaseService.authenticate_admin(db, login_data.username, login_data.password)
     if not admin:
         raise HTTPException(status_code=401, detail="Неверные учетные данные")
+
+    # Генерируем JWT
+    token = create_access_token(data={"sub": admin.username})
+
+    # Записываем его в куки. httponly=True закрывает доступ к куке из JS
+    response.set_cookie(
+        key=COOKIE_NAME,
+        value=token,
+        httponly=True,
+        max_age=7200,  # 2 часа
+        expires=7200,
+        samesite="lax",
+        secure=False  # Поставьте True, если используете HTTPS (в продакшене)
+    )
 
     return {"message": "Успешный вход", "redirect": "/admin/dashboard"}
 
 
 @app.get("/admin/dashboard", response_class=HTMLResponse)
-async def admin_dashboard(request: Request, db: Session = Depends(get_db)):
-    # Получаем данные из базы
+async def admin_dashboard(
+    request: Request, 
+    db: Session = Depends(get_db),
+    current_admin: Admin = Depends(get_current_admin_html)  # Защита роута
+):
+    # Текущий залогиненный админ доступен в переменной current_admin
+    pending_bookings = DatabaseService.get_pending_bookings(db)
     pending_bookings = DatabaseService.get_pending_bookings(db)
     confirmed_bookings = DatabaseService.get_confirmed_bookings(db)
     all_slots = DatabaseService.get_all_slots(db)
@@ -501,17 +576,21 @@ async def admin_dashboard(request: Request, db: Session = Depends(get_db)):
         "slots": slots_list
     })
 
-
 @app.post("/admin/slots/")
-async def create_slot(slot: SlotCreate, db: Session = Depends(get_db)):
+async def create_slot(
+    slot: SlotCreate, 
+    db: Session = Depends(get_db),
+    current_admin: Admin = Depends(get_current_admin_api) # Защита
+):
     created_slot = DatabaseService.create_slot(db, slot.dict())
     return {"message": "Слот создан", "slot_id": created_slot.id}
 
 
 @app.post("/admin/slots/upload-csv")
 async def upload_slots_csv(
-        file: UploadFile = File(...),
-        db: Session = Depends(get_db)
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_admin: Admin = Depends(get_current_admin_api) # Защита
 ):
     #Чекните ошибку BOM кодировка даты !!! (Даня)
     try:
@@ -641,7 +720,8 @@ async def upload_slots_csv(
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.delete("/admin/slots/{slot_id}")
-async def delete_slot(slot_id: int, db: Session = Depends(get_db)):
+async def delete_slot(slot_id: int, db: Session = Depends(get_db),
+                      current_admin: Admin = Depends(get_current_admin_api)):
     success = DatabaseService.delete_slot(db, slot_id)
     if not success:
         raise HTTPException(status_code=404, detail="Слот не найден")
@@ -649,7 +729,8 @@ async def delete_slot(slot_id: int, db: Session = Depends(get_db)):
 
 
 @app.post("/admin/bookings/{slot_id}/confirm")
-async def confirm_booking(slot_id: int, db: Session = Depends(get_db)):
+async def confirm_booking(slot_id: int, db: Session = Depends(get_db),
+                          current_admin: Admin = Depends(get_current_admin_api)):
     booking = DatabaseService.confirm_booking(db, slot_id)
     if not booking:
         raise HTTPException(status_code=404, detail="Бронирование не найдено")
@@ -657,13 +738,15 @@ async def confirm_booking(slot_id: int, db: Session = Depends(get_db)):
 
 
 @app.post("/admin/bookings/confirm-all")
-async def confirm_all_bookings(db: Session = Depends(get_db)):
+async def confirm_all_bookings(db: Session = Depends(get_db),
+                               current_admin: Admin = Depends(get_current_admin_api)):
     count = DatabaseService.confirm_all_bookings(db)
     return {"message": f"Все бронирования ({count}) подтверждены"}
 
 
 @app.get("/admin/bookings/export-csv")
-async def export_bookings_csv(db: Session = Depends(get_db)):
+async def export_bookings_csv(db: Session = Depends(get_db),
+                              current_admin: Admin = Depends(get_current_admin_api)):
     try:
         confirmed_bookings = DatabaseService.get_confirmed_bookings(db)
 

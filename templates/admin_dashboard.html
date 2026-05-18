@@ -12,9 +12,23 @@
         <header class="bg-white shadow rounded-lg p-6 mb-6">
             <div class="flex justify-between items-center">
                 <h1 class="text-2xl font-bold text-gray-800">Панель администратора</h1>
-                <div class="space-x-4">
-                    <a href="/" class="text-blue-600 hover:text-blue-800">Бронирование</a>
-                    <button onclick="logout()" class="text-red-600 hover:text-red-800">Выйти</button>
+                
+                <div class="flex items-center space-x-6">
+                    <a href="/" class="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors">
+                        ← На главную
+                    </a>
+                    
+                    <div class="flex items-center space-x-3 border-l border-gray-200 pl-6">
+                        <span class="text-xs bg-gray-100 text-gray-700 px-3 py-1 rounded-full font-medium select-none">
+                            Администратор
+                        </span>
+                        
+                        <a href="/admin/logout" 
+                           onclick="return confirm('Вы действительно хотите выйти из панели управления?');" 
+                           class="text-sm font-semibold text-red-600 hover:text-red-800 transition-colors">
+                           Выйти
+                        </a>
+                    </div>
                 </div>
             </div>
         </header>
