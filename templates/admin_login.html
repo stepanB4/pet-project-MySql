@@ -52,7 +52,7 @@
                 password: document.getElementById('password').value
             };
 
-            console.log("Отправка данных:", formData);  // Добавьте эту строку
+            console.log("Отправка данных:", formData);
 
             try {
                 const response = await fetch('/admin/login', {
@@ -63,7 +63,7 @@
                 body: JSON.stringify(formData)
                 });
 
-                console.log("Ответ сервера:", response.status);  // И эту
+                console.log("Ответ сервера:", response.status);
 
                 if (response.ok) {
                     const data = await response.json();

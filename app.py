@@ -343,17 +343,14 @@ class DatabaseService:
         return None
 
 
-# Роуты для преподавателя
 @app.get("/", response_class=HTMLResponse)
 async def teacher_calendar(request: Request, db: Session = Depends(get_db)):
-    # --- ВАША ТЕКУЩАЯ ЛОГИКА КАЛЕНДАРЯ (Оставляем без изменений) ---
+
     today = date.today()
     month_calendar = get_month_calendar(today.year, today.month)
 
-    # Получаем количество слотов по дням
     month_slots = DatabaseService.get_available_slots_by_month(db, today.year, today.month)
 
-    # Обновляем календарь с информацией о слотах
     for week in month_calendar:
         for day_data in week:
             if day_data and day_data["date"] in month_slots:
@@ -362,20 +359,16 @@ async def teacher_calendar(request: Request, db: Session = Depends(get_db)):
 
     russian_month_name = get_russian_month_name(today.month)
 
-    # --- НОВАЯ ЛОГИКА АВТОРИЗАЦИИ ---
     is_admin = False
     token = request.cookies.get("admin_access_token") # Имя куки
     if token:
         try:
-            # Декодируем токен (используйте те же SECRET_KEY и ALGORITHM, что и при создании)
             payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
             if "sub" in payload:
                 is_admin = True
         except jwt.PyJWTError:
-            is_admin = False # Токен невалиден или истёк
-    # ---------------------------------
+            is_admin = False
 
-    # Возвращаем шаблон со всеми данными, добавив is_admin
     return templates.TemplateResponse("teacher_calendar1.html", {
         "request": request,
         "today": today.isoformat(),
@@ -383,7 +376,7 @@ async def teacher_calendar(request: Request, db: Session = Depends(get_db)):
         "current_month": today.month,
         "month_name": russian_month_name,
         "calendar": month_calendar,
-        "is_admin": is_admin  # <-- Добавили новый флаг сюда
+        "is_admin": is_admin
     })
 
 
@@ -392,7 +385,6 @@ async def get_calendar(year: int, month: int, db: Session = Depends(get_db)):
     month_calendar = get_month_calendar(year, month)
     month_slots = DatabaseService.get_available_slots_by_month(db, year, month)
 
-    # Обновляем календарь с информацией о слотах
     for week in month_calendar:
         for day_data in week:
             if day_data and day_data["date"] in month_slots:
@@ -445,7 +437,6 @@ async def get_slots_by_date(slot_date: date, db: Session = Depends(get_db)):
 async def get_slots_by_week(start_date: date, db: Session = Depends(get_db)):
     slots = DatabaseService.get_available_slots_by_week(db, start_date)
 
-    # Группируем по дням
     week_slots = {}
     for i in range(7):
         day_date = start_date + timedelta(days=i)
@@ -508,18 +499,16 @@ async def admin_login(
     if not admin:
         raise HTTPException(status_code=401, detail="Неверные учетные данные")
 
-    # Генерируем JWT
     token = create_access_token(data={"sub": admin.username})
 
-    # Записываем его в куки. httponly=True закрывает доступ к куке из JS
     response.set_cookie(
         key=COOKIE_NAME,
         value=token,
         httponly=True,
-        max_age=7200,  # 2 часа
+        max_age=7200, 
         expires=7200,
         samesite="lax",
-        secure=False  # Поставьте True, если используете HTTPS (в продакшене)
+        secure=False 
     )
 
     return {"message": "Успешный вход", "redirect": "/admin/dashboard"}
@@ -529,9 +518,8 @@ async def admin_login(
 async def admin_dashboard(
     request: Request, 
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(get_current_admin_html)  # Защита роута
+    current_admin: Admin = Depends(get_current_admin_html) 
 ):
-    # Текущий залогиненный админ доступен в переменной current_admin
     pending_bookings = DatabaseService.get_pending_bookings(db)
     pending_bookings = DatabaseService.get_pending_bookings(db)
     confirmed_bookings = DatabaseService.get_confirmed_bookings(db)
@@ -597,7 +585,7 @@ async def admin_dashboard(
 async def create_slot(
     slot: SlotCreate, 
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(get_current_admin_api) # Защита
+    current_admin: Admin = Depends(get_current_admin_api)
 ):
     created_slot = DatabaseService.create_slot(db, slot.dict())
     return {"message": "Слот создан", "slot_id": created_slot.id}
@@ -607,9 +595,9 @@ async def create_slot(
 async def upload_slots_csv(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(get_current_admin_api) # Защита
+    current_admin: Admin = Depends(get_current_admin_api) 
 ):
-    #Чекните ошибку BOM кодировка даты !!! (Даня)
+
     try:
         print(f"🔍 Получен файл: {file.filename}, размер: {file.size}")
         content_bytes = await file.read()
