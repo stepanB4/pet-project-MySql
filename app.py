@@ -23,7 +23,8 @@ from database import (
 
 create_tables()
 app = FastAPI(title="Booking System")
-templates = Jinja2Templates(directory="templates")
+templates = Jinja2Templates(directory="templates", auto_reload=True)
+templates.env.cache = {}
 security = HTTPBasic()
 
 RUSSIAN_MONTHS = {
