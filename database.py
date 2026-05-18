@@ -5,9 +5,10 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
 import enum
+import os
 
 # Строка подключения к MySQL
-SQLALCHEMY_DATABASE_URL = "mysql+pymysql://root:Avaxui123@localhost/booking_system"
+SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "mysql+pymysql://root:Avaxui123@localhost/booking_system")
 
 # Создаем движок
 engine = create_engine(
