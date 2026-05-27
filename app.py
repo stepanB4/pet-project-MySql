@@ -15,6 +15,8 @@ import secrets
 import jwt
 from fastapi import Response
 
+
+
 from database import (
     get_db, SessionLocal,
     Classroom, Slot, Admin,
@@ -35,9 +37,55 @@ RUSSIAN_MONTHS = {
     9: "Сентябрь", 10: "Октябрь", 11: "Ноябрь", 12: "Декабрь"
 }
 
-SECRET_KEY = "SUPER_SECRET_KEY_KEEP_IT_SAFE"  # В продакшене вынесите в os.getenv()
+SECRET_KEY = "SUPER_SECRET_KEY_KEEP_IT_SAFE"  # в os.getenv()
 ALGORITHM = "HS256"
 COOKIE_NAME = "admin_access_token"
+
+import smtplib
+from email.mime.text import MIMEText
+from email.header import Header
+
+def send_confirmation_email(to_email: str, teacher_name: str, date_str: str, lesson_num: int, classroom: str, building: str):
+    """Функция отправки Email, использующая переменные окружения из Docker"""
+    smtp_host = os.getenv("SMTP_HOST", "smtp.yandex.ru")
+    smtp_port = int(os.getenv("SMTP_PORT", "465"))
+    smtp_user = os.getenv("SMTP_USER")
+    smtp_password = os.getenv("SMTP_PASSWORD")
+    
+    if not smtp_user or not smtp_password:
+        print("⚠️ SMTP credentials not configured. Email sending skipped.")
+        return
+
+    subject = "Бронирование аудитории подтверждено"
+    body = (
+        f"Здравствуйте, {teacher_name}!\n\n"
+        f"Ваша заявка на бронирование успешно подтверждена.\n\n"
+        f"📋 Детали бронирования:\n"
+        f"- Дата: {date_str}\n"
+        f"- Пара: {lesson_num} ({get_lesson_time(lesson_num)})\n"
+        f"- Аудитория: {classroom}\n"
+        f"- Корпус: {building}\n\n"
+        f"С уважением, Администрация системы бронирования."
+    )
+    
+    msg = MIMEText(body, "plain", "utf-8")
+    msg["Subject"] = Header(subject, "utf-8")
+    msg["From"] = smtp_user
+    msg["To"] = to_email
+
+    try:
+        if smtp_port == 465:
+            with smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=10) as server:
+                server.login(smtp_user, smtp_password)
+                server.sendmail(smtp_user, [to_email], msg.as_string())
+        else:
+            with smtplib.SMTP(smtp_host, smtp_port, timeout=10) as server:
+                server.starttls()
+                server.login(smtp_user, smtp_password)
+                server.sendmail(smtp_user, [to_email], msg.as_string())
+        print(f"📧 Email успешно отправлен на {to_email}")
+    except Exception as e:
+        print(f"❌ Ошибка отправки email на {to_email}: {e}")
 
 # Функция для создания токена
 def create_access_token(data: dict, expires_delta: timedelta = timedelta(hours=2)):
@@ -258,8 +306,19 @@ class DatabaseService:
         db.commit()
         db.refresh(slot)
 
-        # Здесь можно добавить отправку email
-        print(f"Отправка email на {slot.email}: Бронирование подтверждено")
+        classroom = db.query(Classroom).filter(Classroom.id == slot.classroom_id).first()
+        room_num = classroom.room_number if classroom else "Не указана"
+        bld_val = classroom.building.value if classroom else "Не указан"
+
+        if slot.email:
+            send_confirmation_email(
+                to_email=slot.email,
+                teacher_name=slot.teacher_name or "Преподаватель",
+                date_str=slot.date.strftime("%d.%m.%Y"),
+                lesson_num=slot.lesson_number,
+                classroom=room_num,
+                building=bld_val
+            )
 
         return slot
 
@@ -270,7 +329,20 @@ class DatabaseService:
         for slot in pending:
             slot.status = BookingStatus.confirmed
             slot.updated_at = datetime.utcnow()
-            print(f"Отправка email на {slot.email}: Бронирование подтверждено")
+            
+            classroom = db.query(Classroom).filter(Classroom.id == slot.classroom_id).first()
+            room_num = classroom.room_number if classroom else "Не указана"
+            bld_val = classroom.building.value if classroom else "Не указан"
+
+            if slot.email:
+                send_confirmation_email(
+                    to_email=slot.email,
+                    teacher_name=slot.teacher_name or "Преподаватель",
+                    date_str=slot.date.strftime("%d.%m.%Y"),
+                    lesson_num=slot.lesson_number,
+                    classroom=room_num,
+                    building=bld_val
+                )
 
         db.commit()
         return len(pending)
@@ -336,9 +408,8 @@ class DatabaseService:
 
     @staticmethod
     def authenticate_admin(db: Session, username: str, password: str):
-        # В реальном приложении используйте хеширование паролей!
         admin = db.query(Admin).filter(Admin.username == username).first()
-        if admin and admin.password_hash == password:  # Простое сравнение для демо
+        if admin and admin.password_hash == password:
             return admin
         return None
 
