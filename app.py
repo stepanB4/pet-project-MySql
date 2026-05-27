@@ -1,3 +1,4 @@
+import os
 from fastapi import UploadFile, File
 from fastapi import FastAPI, HTTPException, Request, Depends, Form, status
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
