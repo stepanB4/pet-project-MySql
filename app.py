@@ -47,46 +47,73 @@ from email.mime.text import MIMEText
 from email.header import Header
 
 def send_confirmation_email(to_email: str, teacher_name: str, date_str: str, lesson_num: int, classroom: str, building: str):
-    """Функция отправки Email, использующая переменные окружения из Docker"""
-    smtp_host = os.getenv("SMTP_HOST", "smtp.yandex.ru")
-    smtp_port = int(os.getenv("SMTP_PORT", "465"))
-    smtp_user = os.getenv("SMTP_USER")
-    smtp_password = os.getenv("SMTP_PASSWORD")
-    
-    if not smtp_user or not smtp_password:
-        print("⚠️ SMTP credentials not configured. Email sending skipped.")
+    """Функция отправки Email через HTTP API Brevo для обхода блокировок портов на Render"""
+    import json
+    import urllib.request
+    import urllib.error
+
+    # Получаем API ключ из переменных окружения Render
+    api_key = os.getenv("BREVO_API_KEY")
+    # Переиспользуем ваш уже настроенный email в качестве отправителя
+    sender_email = os.getenv("SMTP_USER", "Dapygor@yandex.ru") 
+
+    if not api_key:
+        print("⚠️ Переменная BREVO_API_KEY не настроена. Отправка email пропущена.")
         return
 
     subject = "Бронирование аудитории подтверждено"
-    body = (
-        f"Здравствуйте, {teacher_name}!\n\n"
-        f"Ваша заявка на бронирование успешно подтверждена.\n\n"
-        f"📋 Детали бронирования:\n"
-        f"- Дата: {date_str}\n"
-        f"- Пара: {lesson_num} ({get_lesson_time(lesson_num)})\n"
-        f"- Аудитория: {classroom}\n"
-        f"- Корпус: {building}\n\n"
-        f"С уважением, Администрация системы бронирования."
-    )
     
-    msg = MIMEText(body, "plain", "utf-8")
-    msg["Subject"] = Header(subject, "utf-8")
-    msg["From"] = smtp_user
-    msg["To"] = to_email
+    # Формируем красивое HTML-письмо вместо обычного текста
+    html_content = f"""
+    <html>
+    <body style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
+        <h2 style="color: #2563eb;">Здравствуйте, {teacher_name}!</h2>
+        <p>Ваша заявка на бронирование успешно подтверждена администратором.</p>
+        
+        <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; max-width: 500px;">
+            <h3 style="margin-top: 0; color: #1f2937;">📋 Детали бронирования:</h3>
+            <ul style="list-style: none; padding-left: 0;">
+                <li style="margin-bottom: 8px;"><strong>Дата:</strong> {date_str}</li>
+                <li style="margin-bottom: 8px;"><strong>Пара:</strong> {lesson_num} ({get_lesson_time(lesson_num)})</li>
+                <li style="margin-bottom: 8px;"><strong>Аудитория:</strong> {classroom}</li>
+                <li style="margin-bottom: 8px;"><strong>Корпус:</strong> {building}</li>
+            </ul>
+        </div>
+        
+        <p style="font-size: 12px; color: #6b7280; margin-top: 20px;">
+            С уважением,<br>Администрация системы бронирования МГТУ им. Н.Э. Баумана.
+        </p>
+    </body>
+    </html>
+    """
+
+    # Структура запроса согласно официальной документации Brevo API v3
+    payload = {
+        "sender": {"name": "Система Бронирования", "email": sender_email},
+        "to": [{"email": to_email}],
+        "subject": subject,
+        "htmlContent": html_content
+    }
+
+    url = "https://api.brevo.com/v3/smtp/email"
+    req = urllib.request.Request(url, method="POST")
+    req.add_header("accept", "application/json")
+    req.add_header("api-key", api_key)
+    req.add_header("content-type", "application/json")
 
     try:
-        if smtp_port == 465:
-            with smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=10) as server:
-                server.login(smtp_user, smtp_password)
-                server.sendmail(smtp_user, [to_email], msg.as_string())
-        else:
-            with smtplib.SMTP(smtp_host, smtp_port, timeout=10) as server:
-                server.starttls()
-                server.login(smtp_user, smtp_password)
-                server.sendmail(smtp_user, [to_email], msg.as_string())
-        print(f"📧 Email успешно отправлен на {to_email}")
+        data = json.dumps(payload).encode("utf-8")
+        with urllib.request.urlopen(req, data=data, timeout=10) as response:
+            status_code = response.getcode()
+            if status_code in (200, 201):
+                print(f"📧 Email успешно отправлен через HTTP API на {to_email}")
+            else:
+                print(f"❌ Неожиданный статус от API: {status_code}")
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode("utf-8")
+        print(f"❌ Ошибка Brevo API ({e.code}): {error_body}")
     except Exception as e:
-        print(f"❌ Ошибка отправки email на {to_email}: {e}")
+        print(f"❌ Критическая ошибка при отправке через API: {str(e)}")
 
 # Функция для создания токена
 def create_access_token(data: dict, expires_delta: timedelta = timedelta(hours=2)):
