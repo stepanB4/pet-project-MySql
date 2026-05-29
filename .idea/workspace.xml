@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="9c578353-6f17-4ae7-b801-926f0f4ac4e4" name="Changes" comment="Мелкие косяки с единичным добавлением слота" />
+    <list default="true" id="9c578353-6f17-4ae7-b801-926f0f4ac4e4" name="Changes" comment="Пробую допилить панель со слотами" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -152,7 +152,15 @@
       <option name="project" value="LOCAL" />
       <updated>1780092527516</updated>
     </task>
-    <option name="localTasksCounter" value="11" />
+    <task id="LOCAL-00011" summary="Пробую допилить панель со слотами">
+      <option name="closed" value="true" />
+      <created>1780095008294</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1780095008295</updated>
+    </task>
+    <option name="localTasksCounter" value="12" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -185,6 +193,7 @@
     <MESSAGE value="Начало исправлений ТЗ выбор и поиск аудитории в бланке." />
     <MESSAGE value="Объединение &quot;Добавить слот&quot; и &quot;Управление слотами&quot;" />
     <MESSAGE value="Мелкие косяки с единичным добавлением слота" />
-    <option name="LAST_COMMIT_MESSAGE" value="Мелкие косяки с единичным добавлением слота" />
+    <MESSAGE value="Пробую допилить панель со слотами" />
+    <option name="LAST_COMMIT_MESSAGE" value="Пробую допилить панель со слотами" />
   </component>
 </project>
