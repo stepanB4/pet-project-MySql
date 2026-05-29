@@ -215,41 +215,52 @@ date,lesson_number,classroom,building
             </div>
 
             <!-- Список существующих слотов -->
-            <div class="space-y-4">
-                {% for slot in slots %}
-                <div class="border border-gray-200 rounded-lg p-4">
-                    <div class="flex justify-between items-center">
-                        <div class="space-y-1">
-                            <div class="font-semibold">
-                                {{ slot.date.strftime('%d.%m.%Y') }} -
-                                {% if slot.lesson_number == 1 %}8:30-10:05
-                                {% elif slot.lesson_number == 2 %}10:15-11:50
-                                {% elif slot.lesson_number == 3 %}12:00-13:35
-                                {% elif slot.lesson_number == 4 %}13:50-15:25
-                                {% elif slot.lesson_number == 5 %}15:40-17:15
-                                {% elif slot.lesson_number == 6 %}17:25-19:00
-                                {% elif slot.lesson_number == 7 %}19:10-20:45
-                                {% endif %}
+            <div>
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold">Существующие слоты</h3>
+                    <button id="delete-all-slots"
+                            class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors">
+                        🗑️ Удалить все слоты
+                    </button>
+                </div>
+                <div id="slots-list-container" class="space-y-4">
+                    <!-- Слоты будут отрисованы здесь (если используете динамическую загрузку) -->
+                    <!-- Если вы пока не перешли на динамическую отрисовку, оставьте старый цикл for -->
+                    {% for slot in slots %}
+                    <div class="border border-gray-200 rounded-lg p-4">
+                        <div class="flex justify-between items-center">
+                            <div class="space-y-1">
+                                <div class="font-semibold">
+                                    {{ slot.date.strftime('%d.%m.%Y') }} -
+                                    {% if slot.lesson_number == 1 %}8:30-10:05
+                                    {% elif slot.lesson_number == 2 %}10:15-11:50
+                                    {% elif slot.lesson_number == 3 %}12:00-13:35
+                                    {% elif slot.lesson_number == 4 %}13:50-15:25
+                                    {% elif slot.lesson_number == 5 %}15:40-17:15
+                                    {% elif slot.lesson_number == 6 %}17:25-19:00
+                                    {% elif slot.lesson_number == 7 %}19:10-20:45
+                                    {% endif %}
+                                </div>
+                                <div class="text-sm text-gray-600">
+                                    Аудитория: {{ slot.classroom }}, Корпус: {{ slot.building }}
+                                </div>
+                                <div class="text-sm">
+                                    Статус:
+                                    <span class="{% if slot.is_available %}text-green-600{% else %}text-red-600{% endif %}">
+                                        {{ 'Свободен' if slot.is_available else 'Занят' }}
+                                    </span>
+                                </div>
                             </div>
-                            <div class="text-sm text-gray-600">
-                                Аудитория: {{ slot.classroom }}, Корпус: {{ slot.building }}
+                            <div>
+                                <button onclick="deleteSlot({{ slot.id }})"
+                                        class="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700">
+                                    Удалить
+                                </button>
                             </div>
-                            <div class="text-sm">
-                                Статус:
-                                <span class="{% if slot.is_available %}text-green-600{% else %}text-red-600{% endif %}">
-                                    {{ 'Свободен' if slot.is_available else 'Занят' }}
-                                </span>
-                            </div>
-                        </div>
-                        <div class="space-x-2">
-                            <button onclick="deleteSlot({{ slot.id }})"
-                                    class="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700">
-                                Удалить
-                            </button>
                         </div>
                     </div>
+                    {% endfor %}
                 </div>
-                {% endfor %}
             </div>
         </div>
     </div>
