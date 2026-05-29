@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="9c578353-6f17-4ae7-b801-926f0f4ac4e4" name="Changes" comment="Начало исправлений ТЗ выбор и поиск аудитории в бланке.">
+    <list default="true" id="9c578353-6f17-4ae7-b801-926f0f4ac4e4" name="Changes" comment="Объединение &quot;Добавить слот&quot; и &quot;Управление слотами&quot;">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/templates/admin_dashboard.html" beforeDir="false" afterPath="$PROJECT_DIR$/templates/admin_dashboard.html" afterDir="false" />
     </list>
@@ -139,7 +139,15 @@
       <option name="project" value="LOCAL" />
       <updated>1780088923911</updated>
     </task>
-    <option name="localTasksCounter" value="9" />
+    <task id="LOCAL-00009" summary="Объединение &quot;Добавить слот&quot; и &quot;Управление слотами&quot;">
+      <option name="closed" value="true" />
+      <created>1780092115191</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1780092115191</updated>
+    </task>
+    <option name="localTasksCounter" value="10" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -170,6 +178,7 @@
     <MESSAGE value="Alpha+ Реализован Docker" />
     <MESSAGE value="Начало исправлений ТЗ." />
     <MESSAGE value="Начало исправлений ТЗ выбор и поиск аудитории в бланке." />
-    <option name="LAST_COMMIT_MESSAGE" value="Начало исправлений ТЗ выбор и поиск аудитории в бланке." />
+    <MESSAGE value="Объединение &quot;Добавить слот&quot; и &quot;Управление слотами&quot;" />
+    <option name="LAST_COMMIT_MESSAGE" value="Объединение &quot;Добавить слот&quot; и &quot;Управление слотами&quot;" />
   </component>
 </project>
