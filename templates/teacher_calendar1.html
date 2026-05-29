@@ -228,19 +228,6 @@
                             </select>
                         </div>
 
-                        <!-- Аудитория (откуда переходите) с автодополнением -->
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Аудитория (откуда переходите)</label>
-                             <div class="relative">
-                                <input type="text" id="previous-classroom"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    placeholder="Введите номер аудитории, например 311"
-                                    autocomplete="off">
-                                <div id="classroom-suggestions" class="absolute z-10 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto hidden"></div>
-                            </div>
-                            <div id="classroom-error" class="text-red-600 text-xs mt-1 hidden"></div>
-                        </div>
-
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Email *</label>
                             <input type="email" id="email" required
@@ -267,7 +254,6 @@
         let currentCalendar = {{ calendar|tojson }};
         let currentYear = {{ current_year }};
         let currentMonth = {{ current_month }};
-        let allClassrooms = [];
 
         // DOM элементы
         const currentMonthElement = document.getElementById('current-month');
@@ -603,18 +589,11 @@
         async function submitBooking(event) {
             event.preventDefault();
 
-            const prevClassroom = document.getElementById('previous-classroom').value;
-            if (prevClassroom.trim() !== "" && !allClassrooms.some(c => c.room_number === prevClassroom)) {
-                alert('Пожалуйста, укажите существующую аудиторию или оставьте поле пустым');
-                return;   // прерываем отправку
-            }
-
             const bookingData = {
                 slot_id: parseInt(document.getElementById('booking-slot-id').value),
                 full_name: document.getElementById('full-name').value,
                 group: document.getElementById('group').value,
                 event_type: document.getElementById('event-type').value,
-                previous_classroom: document.getElementById('previous-classroom').value,
                 email: document.getElementById('email').value
             };
 
@@ -646,107 +625,7 @@
         // Глобальные функции для onclick
         window.openBookingModal = openBookingModal;
 
-        // Загрузка списка аудиторий с сервера
-        async function loadClassrooms() {
-            try {
-                const response = await fetch('/api/classrooms');
-                if (response.ok) {
-                    allClassrooms = await response.json();
-                } else {
-                    console.error('Не удалось загрузить аудитории');
-                }
-            } catch (error) {
-                console.error('Ошибка загрузки аудиторий:', error);
-            }
-        }
 
-        // Фильтрация аудиторий по введённому тексту (проверка, начинается ли номер с введённых символов)
-        function filterClassrooms(inputValue) {
-            if (!inputValue) return [];
-            const lowerInput = inputValue.toLowerCase();
-            return allClassrooms.filter(c => c.room_number.toLowerCase().startsWith(lowerInput));
-        }
-
-        // Показать выпадающий список подсказок
-        function showSuggestions(suggestions, inputElement) {
-            const suggestionsDiv = document.getElementById('classroom-suggestions');
-            if (!suggestions.length) {
-                suggestionsDiv.classList.add('hidden');
-                return;
-            }
-            suggestionsDiv.innerHTML = '';
-            suggestions.forEach(s => {
-                const div = document.createElement('div');
-                div.className = 'px-3 py-2 hover:bg-blue-100 cursor-pointer text-gray-800 border-b border-gray-100';
-                div.textContent = `${s.room_number} (${s.building})`;
-                div.addEventListener('click', () => {
-                    inputElement.value = s.room_number;
-                    suggestionsDiv.classList.add('hidden');
-                    validateClassroom(s.room_number); // проверка валидности после выбора
-                });
-                suggestionsDiv.appendChild(div);
-            });
-            suggestionsDiv.classList.remove('hidden');
-        }
-
-        // Проверка, существует ли введённая аудитория в списке
-        function validateClassroom(roomValue) {
-            const errorDiv = document.getElementById('classroom-error');
-            if (!roomValue.trim()) {
-                errorDiv.classList.add('hidden');
-                return true; // пустое поле допустимо (не обязательно)
-            }
-            const exists = allClassrooms.some(c => c.room_number === roomValue);
-            if (!exists) {
-                errorDiv.textContent = 'Выбранной аудитории не существует';
-                errorDiv.classList.remove('hidden');
-            } else {
-                errorDiv.classList.add('hidden');
-            }
-            return exists;
-        }
-
-        // Инициализация автодополнения
-        function initClassroomAutocomplete() {
-            const input = document.getElementById('previous-classroom');
-            if (!input) return;
-            const suggestionsDiv = document.getElementById('classroom-suggestions');
-
-            // При вводе текста
-            input.addEventListener('input', (e) => {
-                const value = e.target.value;
-                const filtered = filterClassrooms(value);
-                if (value && filtered.length > 0) {
-                    showSuggestions(filtered, input);
-                } else {
-                    suggestionsDiv.classList.add('hidden');
-                }
-                // Проверяем валидность при вводе (для сообщения об ошибке)
-                validateClassroom(value);
-            });
-
-            // Скрыть подсказки при клике вне области
-            document.addEventListener('click', (e) => {
-                if (!input.contains(e.target) && !suggestionsDiv.contains(e.target)) {
-                    suggestionsDiv.classList.add('hidden');
-                }
-            });
-
-            // При потере фокуса проверить валидность (чтобы сообщение точно показалось)
-            input.addEventListener('blur', () => {
-                // Небольшая задержка, чтобы успел сработать клик по подсказке
-                setTimeout(() => {
-                    validateClassroom(input.value);
-                    suggestionsDiv.classList.add('hidden');
-                }, 200);
-            });
-        }
-
-        // Загружаем аудитории и инициализируем автодополнение после загрузки DOM
-        document.addEventListener('DOMContentLoaded', async () => {
-            await loadClassrooms();
-            initClassroomAutocomplete();
-        });
     </script>
 </body>
 </html>
