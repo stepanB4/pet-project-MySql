@@ -886,6 +886,19 @@ async def export_bookings_csv(db: Session = Depends(get_db),
             detail=f"Ошибка экспорта: {str(e)}"
         )
 
+@app.get("/api/classrooms")
+async def get_all_classrooms(db: Session = Depends(get_db)):
+    """Возвращает список всех аудиторий (номер + корпус)"""
+    classrooms = db.query(Classroom).order_by(Classroom.room_number).all()
+    return [
+        {
+            "id": c.id,
+            "room_number": c.room_number,
+            "building": c.building.value
+        }
+        for c in classrooms
+    ]
+
 
 if __name__ == "__main__":
     import uvicorn
