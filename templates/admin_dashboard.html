@@ -12,22 +12,11 @@
         <header class="bg-white shadow rounded-lg p-6 mb-6">
             <div class="flex justify-between items-center">
                 <h1 class="text-2xl font-bold text-gray-800">Панель администратора</h1>
-
                 <div class="flex items-center space-x-6">
-                    <a href="/" class="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors">
-                        ← На главную
-                    </a>
-
+                    <a href="/" class="text-sm font-medium text-blue-600 hover:text-blue-800">← На главную</a>
                     <div class="flex items-center space-x-3 border-l border-gray-200 pl-6">
-                        <span class="text-xs bg-gray-100 text-gray-700 px-3 py-1 rounded-full font-medium select-none">
-                            Администратор
-                        </span>
-
-                        <a href="/admin/logout"
-                           onclick="return confirm('Вы действительно хотите выйти из панели управления?');"
-                           class="text-sm font-semibold text-red-600 hover:text-red-800 transition-colors">
-                           Выйти
-                        </a>
+                        <span class="text-xs bg-gray-100 text-gray-700 px-3 py-1 rounded-full">Администратор</span>
+                        <a href="/admin/logout" onclick="return confirm('Выйти?');" class="text-sm font-semibold text-red-600 hover:text-red-800">Выйти</a>
                     </div>
                 </div>
             </div>
@@ -36,12 +25,8 @@
         <!-- Навигация (только две кнопки) -->
         <div class="bg-white shadow rounded-lg p-4 mb-6">
             <nav class="flex space-x-4">
-                <button onclick="showSection('bookings')" class="px-4 py-2 rounded-md font-medium bg-blue-100 text-blue-800">
-                    Бронирования
-                </button>
-                <button onclick="showSection('slots')" class="px-4 py-2 rounded-md font-medium text-gray-600 hover:text-gray-900">
-                    Управление слотами
-                </button>
+                <button onclick="showSection('bookings')" class="px-4 py-2 rounded-md font-medium bg-blue-100 text-blue-800">Бронирования</button>
+                <button onclick="showSection('slots')" class="px-4 py-2 rounded-md font-medium text-gray-600 hover:text-gray-900">Управление слотами</button>
             </nav>
         </div>
 
@@ -52,12 +37,9 @@
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-xl font-semibold">Ожидающие подтверждения ({{ pending_bookings|length }})</h2>
                     {% if pending_bookings %}
-                    <button onclick="confirmAllBookings()" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
-                        Подтвердить все
-                    </button>
+                    <button onclick="confirmAllBookings()" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">Подтвердить все</button>
                     {% endif %}
                 </div>
-
                 {% if not pending_bookings %}
                 <p class="text-gray-500 text-center py-4">Нет бронирований, ожидающих подтверждения</p>
                 {% else %}
@@ -82,11 +64,8 @@
                                     </div>
                                 </div>
                             </div>
-                            <div class="space-x-2">
-                                <button onclick="confirmBooking({{ booking.id }})"
-                                        class="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700">
-                                    Подтвердить
-                                </button>
+                            <div>
+                                <button onclick="confirmBooking({{ booking.id }})" class="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700">Подтвердить</button>
                             </div>
                         </div>
                     </div>
@@ -100,12 +79,9 @@
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-xl font-semibold">Подтвержденные бронирования ({{ confirmed_bookings|length }})</h2>
                     {% if confirmed_bookings %}
-                    <button onclick="exportToCSV()" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
-                        Экспорт в CSV
-                    </button>
+                    <button onclick="exportToCSV()" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">Экспорт в CSV</button>
                     {% endif %}
                 </div>
-
                 {% if not confirmed_bookings %}
                 <p class="text-gray-500 text-center py-4">Нет подтвержденных бронирований</p>
                 {% else %}
@@ -139,129 +115,181 @@
             </div>
         </div>
 
-        <!-- Секция управления слотами (теперь содержит форму добавления слота) -->
-        <div id="slots-section" class="hidden bg-white shadow rounded-lg p-6">
-            <h2 class="text-xl font-semibold mb-4">Управление слотами</h2>
+        <!-- Секция управления слотами (с фильтрами и динамическим списком) -->
+        <div id="slots-section" class="hidden">
+            <div class="bg-white shadow rounded-lg p-6">
+                <h2 class="text-xl font-semibold mb-4">Управление слотами</h2>
 
-            <!-- Загрузка CSV -->
-            <div class="mb-6 p-4 border border-gray-200 rounded-lg">
-                <h3 class="font-semibold mb-2">Загрузить слоты из CSV</h3>
-                <form id="upload-csv-form" class="flex gap-4">
-                    <input type="file" id="csv-file" accept=".csv" class="flex-1" required>
-                    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-                        Загрузить
-                    </button>
-                </form>
-                <div class="mt-3 text-sm text-gray-600">
-                    <p class="font-medium">Формат CSV (без столбца ID!):</p>
-                    <pre class="bg-gray-100 p-2 mt-1 rounded text-xs">
+                <!-- Загрузка CSV -->
+                <div class="mb-6 p-4 border border-gray-200 rounded-lg">
+                    <h3 class="font-semibold mb-2">Загрузить слоты из CSV</h3>
+                    <form id="upload-csv-form" class="flex gap-4">
+                        <input type="file" id="csv-file" accept=".csv" class="flex-1" required>
+                        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Загрузить</button>
+                    </form>
+                    <div class="mt-3 text-sm text-gray-600">
+                        <p class="font-medium">Формат CSV (без столбца ID!):</p>
+                        <pre class="bg-gray-100 p-2 mt-1 rounded text-xs">
 date,lesson_number,classroom,building
 2025-12-15,1,101,ГУК
 2025-12-15,2,102,ГУК</pre>
-                    <p class="mt-2">• Дата в формате ГГГГ-ММ-ДД<br>
-                    • Номер пары: 1-8<br>
-                    • Корпус: ГУК, УЛК, ИБМ, МТ, СМ, Э, ХимЛаб</p>
+                        <p class="mt-2">• Дата в формате ГГГГ-ММ-ДД<br>• Номер пары: 1-8<br>• Корпус: ГУК, УЛК, ИБМ, МТ, СМ, Э, ХимЛаб</p>
+                    </div>
                 </div>
-            </div>
 
-            <!-- ФОРМА ДОБАВЛЕНИЯ СЛОТА (перенесена сюда) -->
-            <div class="mb-8 p-4 border border-gray-200 rounded-lg bg-gray-50">
-                <h3 class="font-semibold mb-4">Добавить новый слот вручную</h3>
-                <form id="add-slot-form" class="space-y-4 max-w-md">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Дата</label>
-                        <input type="date" name="date" required
-                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Номер пары</label>
-                        <select name="lesson_number" required
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="1">1 пара (8:30-10:05)</option>
-                            <option value="2">2 пара (10:15-11:50)</option>
-                            <option value="3">3 пара (12:00-13:35)</option>
-                            <option value="4">4 пара (13:50-15:25)</option>
-                            <option value="5">5 пара (15:40-17:15)</option>
-                            <option value="6">6 пара (17:25-19:00)</option>
-                            <option value="7">7 пара (19:10-20:45)</option>
-                        </select>
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Аудитория</label>
-                        <input type="text" name="classroom" required
-                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Корпус</label>
-                        <select name="building" required
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="ГУК">ГУК</option>
-                            <option value="УЛК">УЛК</option>
-                            <option value="Э">Э</option>
-                            <option value="СМ">СМ</option>
-                            <option value="МТ">МТ</option>
-                            <option value="ИБМ">ИБМ</option>
-                            <option value="ХимЛаб">ХимЛаб</option>
-                        </select>
-                    </div>
-
-                    <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
-                        Добавить слот
-                    </button>
-                </form>
-            </div>
-
-            <!-- Список существующих слотов -->
-            <div class="space-y-4">
-                {% for slot in slots %}
-                <div class="border border-gray-200 rounded-lg p-4">
-                    <div class="flex justify-between items-center">
-                        <div class="space-y-1">
-                            <div class="font-semibold">
-                                {{ slot.date.strftime('%d.%m.%Y') }} -
-                                {% if slot.lesson_number == 1 %}8:30-10:05
-                                {% elif slot.lesson_number == 2 %}10:15-11:50
-                                {% elif slot.lesson_number == 3 %}12:00-13:35
-                                {% elif slot.lesson_number == 4 %}13:50-15:25
-                                {% elif slot.lesson_number == 5 %}15:40-17:15
-                                {% elif slot.lesson_number == 6 %}17:25-19:00
-                                {% elif slot.lesson_number == 7 %}19:10-20:45
-                                {% endif %}
-                            </div>
-                            <div class="text-sm text-gray-600">
-                                Аудитория: {{ slot.classroom }}, Корпус: {{ slot.building }}
-                            </div>
-                            <div class="text-sm">
-                                Статус:
-                                <span class="{% if slot.is_available %}text-green-600{% else %}text-red-600{% endif %}">
-                                    {{ 'Свободен' if slot.is_available else 'Занят' }}
-                                </span>
-                            </div>
+                <!-- Форма добавления слота вручную -->
+                <div class="mb-8 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                    <h3 class="font-semibold mb-4">Добавить новый слот вручную</h3>
+                    <form id="add-slot-form" class="space-y-4 max-w-md">
+                        <div><label class="block text-sm font-medium text-gray-700 mb-1">Дата</label><input type="date" name="date" required class="w-full px-3 py-2 border rounded-md"></div>
+                        <div><label class="block text-sm font-medium text-gray-700 mb-1">Номер пары</label>
+                            <select name="lesson_number" required class="w-full px-3 py-2 border rounded-md">
+                                <option value="1">1 пара (8:30-10:05)</option><option value="2">2 пара (10:15-11:50)</option>
+                                <option value="3">3 пара (12:00-13:35)</option><option value="4">4 пара (13:50-15:25)</option>
+                                <option value="5">5 пара (15:40-17:15)</option><option value="6">6 пара (17:25-19:00)</option>
+                                <option value="7">7 пара (19:10-20:45)</option>
+                            </select>
                         </div>
-                        <div class="space-x-2">
-                            <button onclick="deleteSlot({{ slot.id }})"
-                                    class="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700">
-                                Удалить
-                            </button>
+                        <div><label class="block text-sm font-medium text-gray-700 mb-1">Аудитория</label><input type="text" name="classroom" required class="w-full px-3 py-2 border rounded-md"></div>
+                        <div><label class="block text-sm font-medium text-gray-700 mb-1">Корпус</label>
+                            <select name="building" required class="w-full px-3 py-2 border rounded-md">
+                                <option value="ГУК">ГУК</option><option value="УЛК">УЛК</option><option value="ИБМ">ИБМ</option>
+                                <option value="МТ">МТ</option><option value="СМ">СМ</option><option value="Э">Э</option>
+                                <option value="ХимЛаб">ХимЛаб</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">Добавить слот</button>
+                    </form>
+                </div>
+
+                <!-- Фильтры, сортировка и кнопка удаления всех -->
+                <div class="mb-6 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                    <div class="flex flex-wrap gap-4 items-end">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Корпус</label>
+                            <select id="filter-building" class="border rounded-md px-3 py-2">
+                                <option value="all">Все корпуса</option>
+                                <option value="ГУК">ГУК</option><option value="УЛК">УЛК</option><option value="ИБМ">ИБМ</option>
+                                <option value="МТ">МТ</option><option value="СМ">СМ</option><option value="Э">Э</option>
+                                <option value="ХимЛаб">ХимЛаб</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Статус</label>
+                            <select id="filter-status" class="border rounded-md px-3 py-2">
+                                <option value="all">Все</option>
+                                <option value="free">Свободен</option>
+                                <option value="booked">Занят</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Сортировка</label>
+                            <select id="sort-order" class="border rounded-md px-3 py-2">
+                                <option value="date_asc">Дата (сначала старые) ↑</option>
+                                <option value="date_desc">Дата (сначала новые) ↓</option>
+                                <option value="lesson_asc">Пара (1→8) ↑</option>
+                                <option value="lesson_desc">Пара (8→1) ↓</option>
+                            </select>
+                        </div>
+                        <div class="flex-grow text-right">
+                            <button id="delete-all-slots" class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700">Удалить все слоты</button>
                         </div>
                     </div>
                 </div>
-                {% endfor %}
+
+                <!-- Список существующих слотов (динамически заполняемый) -->
+                <div>
+                    <h3 class="text-lg font-semibold mb-3">Существующие слоты</h3>
+                    <div id="slots-list-container" class="space-y-4">
+                        <!-- Слоты будут отрисованы здесь через JS -->
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
-        // Навигация по секциям (только две)
+        // ======================== ДАННЫЕ СЛОТОВ ИЗ БЭКЕНДА ========================
+        const slotsData = {{ slots|tojson }};
+
+        // ======================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ========================
+        function getLessonTime(lessonNum) {
+            const times = {
+                1: "8:30-10:05", 2: "10:15-11:50", 3: "12:00-13:35", 4: "13:50-15:25",
+                5: "15:40-17:15", 6: "17:25-19:00", 7: "19:10-20:45", 8: "20:55-22:30"
+            };
+            return times[lessonNum] || "Неизвестно";
+        }
+
+        // Фильтрация и сортировка
+        let currentFilterBuilding = 'all';
+        let currentFilterStatus = 'all';
+        let currentSort = 'date_asc';
+
+        function filterAndSortSlots() {
+            let filtered = [...slotsData];
+            if (currentFilterBuilding !== 'all') {
+                filtered = filtered.filter(slot => slot.building === currentFilterBuilding);
+            }
+            if (currentFilterStatus !== 'all') {
+                const isFree = currentFilterStatus === 'free';
+                filtered = filtered.filter(slot => slot.is_available === isFree);
+            }
+            filtered.sort((a, b) => {
+                if (currentSort === 'date_asc') return new Date(a.date) - new Date(b.date);
+                if (currentSort === 'date_desc') return new Date(b.date) - new Date(a.date);
+                if (currentSort === 'lesson_asc') return a.lesson_number - b.lesson_number;
+                if (currentSort === 'lesson_desc') return b.lesson_number - a.lesson_number;
+                return 0;
+            });
+            return filtered;
+        }
+
+        // Рендер списка слотов
+        function renderSlots() {
+            const container = document.getElementById('slots-list-container');
+            const filtered = filterAndSortSlots();
+            if (!filtered.length) {
+                container.innerHTML = '<div class="text-center text-gray-500 py-8">Нет слотов, соответствующих фильтрам</div>';
+                return;
+            }
+            let html = '';
+            filtered.forEach(slot => {
+                const dateObj = new Date(slot.date);
+                const dateStr = dateObj.toLocaleDateString('ru-RU');
+                const statusText = slot.is_available ? 'Свободен' : 'Занят';
+                const statusClass = slot.is_available ? 'text-green-600' : 'text-red-600';
+                html += `
+                    <div class="border border-gray-200 rounded-lg p-4">
+                        <div class="flex justify-between items-center">
+                            <div class="space-y-1">
+                                <div class="font-semibold">${dateStr} - ${getLessonTime(slot.lesson_number)}</div>
+                                <div class="text-sm text-gray-600">Аудитория: ${slot.classroom}, Корпус: ${slot.building}</div>
+                                <div class="text-sm">Статус: <span class="${statusClass}">${statusText}</span></div>
+                            </div>
+                            <div>
+                                <button onclick="deleteSlot(${slot.id})" class="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700">Удалить</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        // Обновление при изменении фильтров
+        function updateFiltersAndRender() {
+            currentFilterBuilding = document.getElementById('filter-building').value;
+            currentFilterStatus = document.getElementById('filter-status').value;
+            currentSort = document.getElementById('sort-order').value;
+            renderSlots();
+        }
+
+        // ======================== ОСТАЛЬНЫЕ ФУНКЦИИ (СОХРАНЕНЫ) ========================
         function showSection(sectionName) {
             document.getElementById('bookings-section').classList.add('hidden');
             document.getElementById('slots-section').classList.add('hidden');
             document.getElementById(sectionName + '-section').classList.remove('hidden');
-
-            // Обновляем активную кнопку
             document.querySelectorAll('nav button').forEach(btn => {
                 btn.classList.remove('bg-blue-100', 'text-blue-800');
                 btn.classList.add('text-gray-600', 'hover:text-gray-900');
@@ -270,38 +298,23 @@ date,lesson_number,classroom,building
             event.target.classList.remove('text-gray-600', 'hover:text-gray-900');
         }
 
-        // Подтверждение бронирования
         async function confirmBooking(bookingId) {
             try {
                 const response = await fetch(`/admin/bookings/${bookingId}/confirm`, { method: 'POST' });
-                if (response.ok) {
-                    alert('Бронирование подтверждено');
-                    location.reload();
-                } else {
-                    alert('Ошибка подтверждения');
-                }
-            } catch (error) {
-                alert('Ошибка сети');
-            }
+                if (response.ok) { alert('Бронирование подтверждено'); location.reload(); }
+                else { alert('Ошибка подтверждения'); }
+            } catch (error) { alert('Ошибка сети'); }
         }
 
-        // Подтверждение всех бронирований
         async function confirmAllBookings() {
             if (!confirm('Подтвердить все бронирования?')) return;
             try {
                 const response = await fetch('/admin/bookings/confirm-all', { method: 'POST' });
-                if (response.ok) {
-                    alert('Все бронирования подтверждены');
-                    location.reload();
-                } else {
-                    alert('Ошибка подтверждения');
-                }
-            } catch (error) {
-                alert('Ошибка сети');
-            }
+                if (response.ok) { alert('Все бронирования подтверждены'); location.reload(); }
+                else { alert('Ошибка подтверждения'); }
+            } catch (error) { alert('Ошибка сети'); }
         }
 
-        // Экспорт в CSV
         async function exportToCSV() {
             try {
                 const response = await fetch('/admin/bookings/export-csv');
@@ -321,7 +334,6 @@ date,lesson_number,classroom,building
             }
         }
 
-        // Добавление слота (форма перенесена)
         document.getElementById('add-slot-form').addEventListener('submit', async function(e) {
             e.preventDefault();
             const formData = new FormData(this);
@@ -349,15 +361,11 @@ date,lesson_number,classroom,building
             }
         });
 
-        // Загрузка CSV
         document.getElementById('upload-csv-form').addEventListener('submit', async function(e) {
             e.preventDefault();
             const fileInput = document.getElementById('csv-file');
             const file = fileInput.files[0];
-            if (!file) {
-                alert('❌ Выберите файл CSV');
-                return;
-            }
+            if (!file) { alert('❌ Выберите файл CSV'); return; }
             const formData = new FormData();
             formData.append('file', file);
             try {
@@ -386,42 +394,43 @@ date,lesson_number,classroom,building
             }
         });
 
-        // Удаление слота
         async function deleteSlot(slotId) {
             if (!confirm('Удалить этот слот?')) return;
             try {
                 const response = await fetch(`/admin/slots/${slotId}`, { method: 'DELETE' });
-                if (response.ok) {
-                    alert('Слот удален');
-                    location.reload();
-                } else {
-                    const error = await response.json();
-                    alert('Ошибка: ' + error.detail);
-                }
-            } catch (error) {
-                alert('Ошибка сети');
-            }
+                if (response.ok) { alert('Слот удален'); location.reload(); }
+                else { const error = await response.json(); alert('Ошибка: ' + error.detail); }
+            } catch (error) { alert('Ошибка сети'); }
         }
 
-        // Функция для отладки (оставлена для тестов)
+        document.getElementById('delete-all-slots').addEventListener('click', async () => {
+            if (!confirm('⚠️ ВНИМАНИЕ! Вы собираетесь удалить ВСЕ слоты. Это действие необратимо. Продолжить?')) return;
+            try {
+                const response = await fetch('/admin/slots/delete-all', { method: 'DELETE' });
+                if (response.ok) { alert('Все слоты удалены'); location.reload(); }
+                else { const error = await response.json(); alert('Ошибка: ' + (error.detail || 'Не удалось удалить слоты')); }
+            } catch (error) { alert('Ошибка сети: ' + error.message); }
+        });
+
+        // Инициализация фильтров и рендер при загрузке
+        document.getElementById('filter-building').addEventListener('change', updateFiltersAndRender);
+        document.getElementById('filter-status').addEventListener('change', updateFiltersAndRender);
+        document.getElementById('sort-order').addEventListener('change', updateFiltersAndRender);
+
+        // При загрузке страницы отрисовываем слоты (если секция slots активна, но рендер всё равно выполнится)
+        renderSlots();
+
+        // Отладочная функция
         window.debugCSV = async function() {
             const testData = `date,lesson_number,classroom,building\n2025-12-20,1,101,ГУК\n2025-12-20,2,102,ГУК`;
             const formData = new FormData();
             const blob = new Blob([testData], { type: 'text/csv' });
             formData.append('file', blob, 'test.csv');
             try {
-                console.log('📤 Отправка тестового запроса...');
                 const response = await fetch('/admin/slots/upload-csv', { method: 'POST', body: formData });
-                console.log('📥 Статус:', response.status);
                 const text = await response.text();
-                console.log('📥 Ответ:', text);
-                try {
-                    const json = JSON.parse(text);
-                    console.log('📊 Парсированный JSON:', json);
-                    if (response.ok) alert('✅ Успех! Ответ: ' + json.message);
-                    else alert('❌ Ошибка: ' + (json.detail || json.message));
-                } catch(e) { alert('Ответ сервера (не JSON): ' + text.substring(0, 200)); }
-            } catch (error) { alert('❌ Сетевая ошибка: ' + error.message); }
+                console.log('Тест CSV:', response.status, text);
+            } catch (error) { console.error(error); }
         };
     </script>
 </body>
