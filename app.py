@@ -47,21 +47,21 @@ from email.mime.text import MIMEText
 from email.header import Header
 
 def send_confirmation_email(to_email: str, teacher_name: str, date_str: str, lesson_num: int, classroom: str, building: str):
+    """Отправка письма через EmailJS API с подробным логированием"""
     import urllib.request
+    import urllib.error
     import json
     import os
 
-    # Убедитесь, что эти ключи у вас есть в Render -> Environment
     service_id = os.getenv("EMAILJS_SERVICE_ID")
     template_id = os.getenv("EMAILJS_TEMPLATE_ID")
     public_key = os.getenv("EMAILJS_PUBLIC_KEY")
-    private_key = os.getenv("EMAILJS_PRIVATE_KEY") # Иногда требуется для REST API
+    private_key = os.getenv("EMAILJS_PRIVATE_KEY")
 
     payload = {
         "service_id": service_id,
         "template_id": template_id,
         "user_id": public_key,
-        "accessToken": private_key, # Попробуйте добавить это поле, если 403 сохраняется
         "template_params": {
             "to_email": to_email,
             "teacher_name": teacher_name,
@@ -71,6 +71,10 @@ def send_confirmation_email(to_email: str, teacher_name: str, date_str: str, les
             "building": building
         }
     }
+    
+    # Добавляем accessToken только если он задан в Render, чтобы не отправить null
+    if private_key:
+        payload["accessToken"] = private_key
 
     req = urllib.request.Request("https://api.emailjs.com/api/v1.0/email/send", method="POST")
     req.add_header("Content-Type", "application/json")
@@ -78,9 +82,13 @@ def send_confirmation_email(to_email: str, teacher_name: str, date_str: str, les
     try:
         data = json.dumps(payload).encode("utf-8")
         with urllib.request.urlopen(req, data=data, timeout=10) as response:
-            print(f"📧 EmailJS: письмо успешно отправлено!")
+            print(f"📧 EmailJS: письмо успешно отправлено на {to_email}")
+    except urllib.error.HTTPError as e:
+        # Теперь мы увидим ТОЧНЫЙ текст ответа от EmailJS (почему он ругается)
+        error_msg = e.read().decode('utf-8')
+        print(f"❌ Ошибка API EmailJS ({e.code}): {error_msg}")
     except Exception as e:
-        print(f"🔍 Отладочная информация: ServiceID={service_id}, TemplateID={template_id}")
+        print(f"❌ Внутренняя системная ошибка: {str(e)}")
 
 # Функция для создания токена
 def create_access_token(data: dict, expires_delta: timedelta = timedelta(hours=2)):
