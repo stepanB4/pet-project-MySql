@@ -47,73 +47,39 @@ from email.mime.text import MIMEText
 from email.header import Header
 
 def send_confirmation_email(to_email: str, teacher_name: str, date_str: str, lesson_num: int, classroom: str, building: str):
-    """Функция отправки Email через HTTP API Brevo для обхода блокировок портов на Render"""
-    import json
+    """Отправка письма через EmailJS API"""
     import urllib.request
-    import urllib.error
+    import json
+    import os
 
-    # Получаем API ключ из переменных окружения Render
-    api_key = os.getenv("BREVO_API_KEY")
-    # Переиспользуем ваш уже настроенный email в качестве отправителя
-    sender_email = os.getenv("SMTP_USER", "Dapygor@yandex.ru") 
+    # Получаем ключи из настроек Render (Environment)
+    service_id = os.getenv("EMAILJS_SERVICE_ID")
+    template_id = os.getenv("EMAILJS_TEMPLATE_ID")
+    public_key = os.getenv("EMAILJS_PUBLIC_KEY")
 
-    if not api_key:
-        print("⚠️ Переменная BREVO_API_KEY не настроена. Отправка email пропущена.")
-        return
-
-    subject = "Бронирование аудитории подтверждено"
-    
-    # Формируем красивое HTML-письмо вместо обычного текста
-    html_content = f"""
-    <html>
-    <body style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
-        <h2 style="color: #2563eb;">Здравствуйте, {teacher_name}!</h2>
-        <p>Ваша заявка на бронирование успешно подтверждена администратором.</p>
-        
-        <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; max-width: 500px;">
-            <h3 style="margin-top: 0; color: #1f2937;">📋 Детали бронирования:</h3>
-            <ul style="list-style: none; padding-left: 0;">
-                <li style="margin-bottom: 8px;"><strong>Дата:</strong> {date_str}</li>
-                <li style="margin-bottom: 8px;"><strong>Пара:</strong> {lesson_num} ({get_lesson_time(lesson_num)})</li>
-                <li style="margin-bottom: 8px;"><strong>Аудитория:</strong> {classroom}</li>
-                <li style="margin-bottom: 8px;"><strong>Корпус:</strong> {building}</li>
-            </ul>
-        </div>
-        
-        <p style="font-size: 12px; color: #6b7280; margin-top: 20px;">
-            С уважением,<br>Администрация системы бронирования МГТУ им. Н.Э. Баумана.
-        </p>
-    </body>
-    </html>
-    """
-
-    # Структура запроса согласно официальной документации Brevo API v3
     payload = {
-        "sender": {"name": "Система Бронирования", "email": sender_email},
-        "to": [{"email": to_email}],
-        "subject": subject,
-        "htmlContent": html_content
+        "service_id": service_id,
+        "template_id": template_id,
+        "user_id": public_key,
+        "template_params": {
+            "to_email": to_email,
+            "teacher_name": teacher_name,
+            "date": date_str,
+            "lesson_num": lesson_num,
+            "classroom": classroom,
+            "building": building
+        }
     }
 
-    url = "https://api.brevo.com/v3/smtp/email"
-    req = urllib.request.Request(url, method="POST")
-    req.add_header("accept", "application/json")
-    req.add_header("api-key", api_key)
-    req.add_header("content-type", "application/json")
-
+    req = urllib.request.Request("https://api.emailjs.com/api/v1.0/email/send", method="POST")
+    req.add_header("Content-Type", "application/json")
+    
     try:
         data = json.dumps(payload).encode("utf-8")
         with urllib.request.urlopen(req, data=data, timeout=10) as response:
-            status_code = response.getcode()
-            if status_code in (200, 201):
-                print(f"📧 Email успешно отправлен через HTTP API на {to_email}")
-            else:
-                print(f"❌ Неожиданный статус от API: {status_code}")
-    except urllib.error.HTTPError as e:
-        error_body = e.read().decode("utf-8")
-        print(f"❌ Ошибка Brevo API ({e.code}): {error_body}")
+            print(f"📧 EmailJS: письмо успешно отправлено на {to_email}")
     except Exception as e:
-        print(f"❌ Критическая ошибка при отправке через API: {str(e)}")
+        print(f"❌ Ошибка EmailJS: {str(e)}")
 
 # Функция для создания токена
 def create_access_token(data: dict, expires_delta: timedelta = timedelta(hours=2)):
