@@ -220,7 +220,7 @@ date,lesson_number,classroom,building
                     <h3 class="text-lg font-semibold">Существующие слоты</h3>
                     <button id="delete-all-slots"
                             class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors">
-                        🗑️ Удалить все слоты
+                        Удалить все слоты
                     </button>
                 </div>
                 <div id="slots-list-container" class="space-y-4">
@@ -366,7 +366,7 @@ date,lesson_number,classroom,building
             const fileInput = document.getElementById('csv-file');
             const file = fileInput.files[0];
             if (!file) {
-                alert('❌ Выберите файл CSV');
+                alert('Выберите файл CSV');
                 return;
             }
             const formData = new FormData();
@@ -381,15 +381,15 @@ date,lesson_number,classroom,building
                 let result;
                 try { result = JSON.parse(responseText); } catch(e) { throw new Error(`Сервер вернул некорректный ответ. Статус: ${response.status}`); }
                 if (response.ok) {
-                    alert('✅ ' + (result.message || 'Файл успешно загружен'));
+                    alert(' ' + (result.message || 'Файл успешно загружен'));
                     fileInput.value = '';
                     setTimeout(() => location.reload(), 1000);
                 } else {
-                    alert('❌ Ошибка: ' + (result.detail || result.message || 'Неизвестная ошибка'));
+                    alert('Ошибка: ' + (result.detail || result.message || 'Неизвестная ошибка'));
                 }
             } catch (error) {
                 console.error('Ошибка загрузки:', error);
-                alert('❌ Ошибка: ' + error.message);
+                alert('Ошибка: ' + error.message);
             } finally {
                 const button = this.querySelector('button[type="submit"]');
                 button.textContent = 'Загрузить';
@@ -421,19 +421,34 @@ date,lesson_number,classroom,building
             const blob = new Blob([testData], { type: 'text/csv' });
             formData.append('file', blob, 'test.csv');
             try {
-                console.log('📤 Отправка тестового запроса...');
+                console.log('Отправка тестового запроса...');
                 const response = await fetch('/admin/slots/upload-csv', { method: 'POST', body: formData });
-                console.log('📥 Статус:', response.status);
+                console.log('Статус:', response.status);
                 const text = await response.text();
-                console.log('📥 Ответ:', text);
+                console.log('Ответ:', text);
                 try {
                     const json = JSON.parse(text);
-                    console.log('📊 Парсированный JSON:', json);
-                    if (response.ok) alert('✅ Успех! Ответ: ' + json.message);
-                    else alert('❌ Ошибка: ' + (json.detail || json.message));
+                    console.log('Парсированный JSON:', json);
+                    if (response.ok) alert('Успех! Ответ: ' + json.message);
+                    else alert('Ошибка: ' + (json.detail || json.message));
                 } catch(e) { alert('Ответ сервера (не JSON): ' + text.substring(0, 200)); }
-            } catch (error) { alert('❌ Сетевая ошибка: ' + error.message); }
+            } catch (error) { alert('Сетевая ошибка: ' + error.message); }
         };
+        document.getElementById('delete-all-slots').addEventListener('click', async () => {
+            if (!confirm('⚠ВНИМАНИЕ! Вы собираетесь удалить ВСЕ слоты. Это действие необратимо. Продолжить?')) return;
+            try {
+                const response = await fetch('/admin/slots/delete-all', { method: 'DELETE' });
+                if (response.ok) {
+                    alert('Все слоты удалены');
+                    location.reload();
+                } else {
+                    const error = await response.json();
+                    alert('Ошибка: ' + (error.detail || 'Не удалось удалить слоты'));
+                }
+            } catch (error) {
+                alert('Ошибка сети: ' + error.message);
+            }
+        });
     </script>
 </body>
 </html>

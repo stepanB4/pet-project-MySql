@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="9c578353-6f17-4ae7-b801-926f0f4ac4e4" name="Changes" comment="Пробую допилить панель со слотами">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+    <list default="true" id="9c578353-6f17-4ae7-b801-926f0f4ac4e4" name="Changes" comment="Кнопка &quot;Удалить все&quot;">
       <change beforePath="$PROJECT_DIR$/templates/admin_dashboard.html" beforeDir="false" afterPath="$PROJECT_DIR$/templates/admin_dashboard.html" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -171,7 +170,15 @@
       <option name="project" value="LOCAL" />
       <updated>1780095617061</updated>
     </task>
-    <option name="localTasksCounter" value="13" />
+    <task id="LOCAL-00013" summary="Кнопка &quot;Удалить все&quot;">
+      <option name="closed" value="true" />
+      <created>1780096469340</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1780096469340</updated>
+    </task>
+    <option name="localTasksCounter" value="14" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -205,6 +212,7 @@
     <MESSAGE value="Объединение &quot;Добавить слот&quot; и &quot;Управление слотами&quot;" />
     <MESSAGE value="Мелкие косяки с единичным добавлением слота" />
     <MESSAGE value="Пробую допилить панель со слотами" />
-    <option name="LAST_COMMIT_MESSAGE" value="Пробую допилить панель со слотами" />
+    <MESSAGE value="Кнопка &quot;Удалить все&quot;" />
+    <option name="LAST_COMMIT_MESSAGE" value="Кнопка &quot;Удалить все&quot;" />
   </component>
 </project>
