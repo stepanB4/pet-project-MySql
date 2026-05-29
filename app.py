@@ -815,6 +815,18 @@ async def delete_slot(slot_id: int, db: Session = Depends(get_db),
         raise HTTPException(status_code=404, detail="Слот не найден")
     return {"message": "Слот удален"}
 
+@app.delete("/admin/slots/delete-all")
+async def delete_all_slots(
+    db: Session = Depends(get_db),
+    current_admin: Admin = Depends(get_current_admin_api)
+):
+    try:
+        db.query(Slot).delete()
+        db.commit()
+        return {"message": "Все слоты успешно удалены"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/admin/bookings/{slot_id}/confirm")
 async def confirm_booking(slot_id: int, db: Session = Depends(get_db),
@@ -886,18 +898,7 @@ async def export_bookings_csv(db: Session = Depends(get_db),
         )
 
 
-@app.delete("/admin/slots/delete-all")
-async def delete_all_slots(
-    db: Session = Depends(get_db),
-    current_admin: Admin = Depends(get_current_admin_api)
-):
-    try:
-        db.query(Slot).delete()
-        db.commit()
-        return {"message": "Все слоты успешно удалены"}
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+
 
 if __name__ == "__main__":
     import uvicorn
