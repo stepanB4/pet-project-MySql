@@ -146,6 +146,13 @@ def get_russian_month_name(month_number: int) -> str:
 
 
 # Модели Pydantic
+
+class TeacherCreate(BaseModel):
+    full_name: str
+
+class GroupCreate(BaseModel):
+    group_name: str
+
 class SlotCreate(BaseModel):
     date: date
     lesson_number: int
@@ -849,6 +856,113 @@ async def delete_all_slots(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+
+# ==========================================
+# УПРАВЛЕНИЕ ДАННЫМИ: ПРЕПОДАВАТЕЛИ И ГРУППЫ
+# ==========================================
+
+# 1. Ручное добавление преподавателя
+@app.post("/admin/teachers/add")
+async def add_teacher(data: TeacherCreate, db: Session = Depends(get_db)):
+    name = data.full_name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="ФИО преподавателя не может быть пустым")
+    
+    exists = db.query(Teacher).filter(Teacher.full_name == name).first()
+    if exists:
+        raise HTTPException(status_code=400, detail="Такой преподаватель уже существует в базе данных")
+    
+    new_teacher = Teacher(full_name=name)
+    db.add(new_teacher)
+    db.commit()
+    return {"message": f"Преподаватель '{name}' успешно добавлен"}
+
+# 2. Загрузка списка преподавателей из CSV
+@app.post("/admin/teachers/upload-csv")
+async def upload_teachers_csv(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    try:
+        contents = await file.read()
+        buffer = io.StringIO(contents.decode('utf-8-sig'))
+        reader = csv.reader(buffer)
+        
+        header = next(reader, None)
+        rows_to_process = []
+        
+        # Если в первой строке не заголовок "ФИО", учитываем её как данные
+        if header and header[0].strip().lower() != 'фио':
+            rows_to_process.append(header[0].strip())
+            
+        for row in reader:
+            if row and row[0].strip():
+                rows_to_process.append(row[0].strip())
+                
+        added_count = 0
+        skipped_count = 0
+        
+        for name in rows_to_process:
+            exists = db.query(Teacher).filter(Teacher.full_name == name).first()
+            if not exists:
+                db.add(Teacher(full_name=name))
+                added_count += 1
+            else:
+                skipped_count += 1
+                
+        db.commit()
+        return {"message": f"Успешно добавлено: {added_count}. Пропущено (уже есть в базе): {skipped_count}."}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Ошибка при обработке CSV: {str(e)}")
+
+
+# 3. Ручное добавление группы
+@app.post("/admin/groups/add")
+async def add_group(data: GroupCreate, db: Session = Depends(get_db)):
+    group_name = data.group_name.strip()
+    if not group_name:
+        raise HTTPException(status_code=400, detail="Название группы не может быть пустым")
+        
+    exists = db.query(Group).filter(Group.group_name == group_name).first()
+    if exists:
+        raise HTTPException(status_code=400, detail="Такая группа уже существует в базе данных")
+        
+    new_group = Group(group_name=group_name)
+    db.add(new_group)
+    db.commit()
+    return {"message": f"Группа '{group_name}' успешно добавлена"}
+
+# 4. Загрузка списка групп из CSV
+@app.post("/admin/groups/upload-csv")
+async def upload_groups_csv(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    try:
+        contents = await file.read()
+        buffer = io.StringIO(contents.decode('utf-8-sig'))
+        reader = csv.reader(buffer)
+        
+        header = next(reader, None)
+        rows_to_process = []
+        
+        # Если в первой строке не заголовок "Группа", учитываем её как данные
+        if header and header[0].strip().lower() != 'группа':
+            rows_to_process.append(header[0].strip())
+            
+        for row in reader:
+            if row and row[0].strip():
+                rows_to_process.append(row[0].strip())
+                
+        added_count = 0
+        skipped_count = 0
+        
+        for g_name in rows_to_process:
+            exists = db.query(Group).filter(Group.group_name == g_name).first()
+            if not exists:
+                db.add(Group(group_name=g_name))
+                added_count += 1
+            else:
+                skipped_count += 1
+                
+        db.commit()
+        return {"message": f"Успешно добавлено групп: {added_count}. Пропущено (уже есть в базе): {skipped_count}."}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Ошибка при обработке CSV: {str(e)}")
 
 @app.post("/admin/bookings/{slot_id}/confirm")
 async def confirm_booking(slot_id: int, db: Session = Depends(get_db),
