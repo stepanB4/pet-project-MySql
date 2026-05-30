@@ -16,11 +16,9 @@ import secrets
 import jwt
 from fastapi import Response
 
-
-
 from database import (
     get_db, SessionLocal,
-    Classroom, Slot, Admin,
+    Classroom, Slot, Admin, Teacher, Group,
     BuildingEnum, BookingStatus,
     get_lesson_time, create_tables
 )
@@ -545,12 +543,36 @@ async def get_slots_by_week(start_date: date, db: Session = Depends(get_db)):
         "slots": week_slots
     }
 
+@app.get("/api/teachers/search")
+async def search_teachers(q: str = "", db: Session = Depends(get_db)):
+    if not q:
+        return []
+    # Поиск по подстроке (регистронезависимо)
+    teachers = db.query(Teacher).filter(Teacher.full_name.ilike(f"%{q}%")).limit(10).all()
+    return [{"id": t.id, "full_name": t.full_name} for t in teachers]
+
+@app.get("/api/groups/search")
+async def search_groups(q: str = "", db: Session = Depends(get_db)):
+    if not q:
+        return []
+    groups = db.query(Group).filter(Group.group_name.ilike(f"%{q}%")).limit(10).all()
+    return [{"id": g.id, "group_name": g.group_name} for g in groups]
 
 @app.post("/api/bookings/")
 async def create_booking(booking: BookingCreate, db: Session = Depends(get_db)):
     slot = DatabaseService.get_slot_by_id(db, booking.slot_id)
     if not slot or slot.is_booked:
         raise HTTPException(status_code=400, detail="Слот недоступен")
+
+    # СТРОГАЯ ВАЛИДАЦИЯ: Проверка существования ФИО в БД
+    teacher_exists = db.query(Teacher).filter(Teacher.full_name == booking.full_name).first()
+    if not teacher_exists:
+        raise HTTPException(status_code=400, detail="Указанный преподаватель не найден в базе данных. Выберите ФИО из выпадающего списка.")
+
+    # СТРОГАЯ ВАЛИДАЦИЯ: Проверка существования Группы в БД
+    group_exists = db.query(Group).filter(Group.group_name == booking.group).first()
+    if not group_exists:
+        raise HTTPException(status_code=400, detail="Указанная группа не найдена в базе данных. Выберите группу из выпадающего списка.")
 
     booking_data = booking.dict()
     created_booking = DatabaseService.create_booking(db, booking_data)

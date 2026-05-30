@@ -205,27 +205,30 @@
                     <input type="hidden" id="booking-slot-id">
 
                     <div class="space-y-4">
-                        <div>
+                        <div class="relative">
                             <label class="block text-sm font-medium text-gray-700 mb-1">ФИО *</label>
-                            <input type="text" id="full-name" required
+                            <input type="text" id="full-name" autocomplete="off" required placeholder="Начните вводить ФИО..."
                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <ul id="teacher-suggestions" class="absolute z-10 w-full bg-white border border-gray-300 rounded-md mt-1 hidden max-h-48 overflow-y-auto shadow-lg"></ul>
                         </div>
 
-                        <div>
+                        <div class="relative">
                             <label class="block text-sm font-medium text-gray-700 mb-1">Группа *</label>
-                            <input type="text" id="group" required
+                            <input type="text" id="group" autocomplete="off" required placeholder="Начните вводить номер группы..."
                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <ul id="group-suggestions" class="absolute z-10 w-full bg-white border border-gray-300 rounded-md mt-1 hidden max-h-48 overflow-y-auto shadow-lg"></ul>
                         </div>
 
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Контрольное мероприятие *</label>
-                            <select id="event-type" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                <option value="" selected disabled hidden></option>
-                                <option value="РК">РК</option>
-                                <option value="Консультация">Консультация</option>
-                                <option value="Сдача ДЗ">Сдача ДЗ</option>
-                                <option value="Экзамен">Экзамен</option>
-                            </select>
+                            <input type="text" id="event-type" required
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Аудитория (откуда переходите)</label>
+                            <input type="text" id="previous-classroom"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </div>
 
                         <div>
@@ -594,6 +597,7 @@
                 full_name: document.getElementById('full-name').value,
                 group: document.getElementById('group').value,
                 event_type: document.getElementById('event-type').value,
+                previous_classroom: document.getElementById('previous-classroom').value,
                 email: document.getElementById('email').value
             };
 
@@ -622,10 +626,77 @@
             }
         }
 
-        // Глобальные функции для onclick
         window.openBookingModal = openBookingModal;
 
+        // Функция настройки автодополнения
+        function setupAutocomplete(inputId, suggestionsBoxId, apiEndpoint, fieldName) {
+            const input = document.getElementById(inputId);
+            const suggestionsBox = document.getElementById(suggestionsBoxId);
+            let debounceTimer;
 
+            input.addEventListener('input', function() {
+                clearTimeout(debounceTimer);
+                const query = this.value.trim();
+                
+                if (query.length < 2) {
+                    suggestionsBox.classList.add('hidden');
+                    return;
+                }
+
+                debounceTimer = setTimeout(async () => {
+                    try {
+                        const response = await fetch(`${apiEndpoint}?q=${encodeURIComponent(query)}`);
+                        const data = await response.json();
+                        
+                        suggestionsBox.innerHTML = '';
+                        
+                        if (data.length > 0) {
+                            data.forEach(item => {
+                                const li = document.createElement('li');
+                                li.className = 'px-3 py-2 hover:bg-blue-50 cursor-pointer text-sm text-gray-700 transition-colors border-b border-gray-100 last:border-0';
+                                li.textContent = item[fieldName];
+                                
+                                // При клике на элемент списка заполняем input
+                                li.addEventListener('mousedown', (e) => {
+                                    e.preventDefault(); // Предотвращаем потерю фокуса input
+                                    input.value = item[fieldName];
+                                    suggestionsBox.classList.add('hidden');
+                                });
+                                
+                                suggestionsBox.appendChild(li);
+                            });
+                            suggestionsBox.classList.remove('hidden');
+                        } else {
+                            const li = document.createElement('li');
+                            li.className = 'px-3 py-2 text-sm text-red-500 italic';
+                            li.textContent = 'Совпадений не найдено';
+                            suggestionsBox.appendChild(li);
+                            suggestionsBox.classList.remove('hidden');
+                        }
+                    } catch (error) {
+                        console.error('Ошибка загрузки данных:', error);
+                    }
+                }, 300); // Задержка 300мс для снижения нагрузки на БД
+            });
+
+            // Скрытие списка при потере фокуса
+            input.addEventListener('blur', () => {
+                suggestionsBox.classList.add('hidden');
+            });
+
+            // Показ списка при фокусе, если уже есть текст
+            input.addEventListener('focus', () => {
+                if (suggestionsBox.children.length > 0 && input.value.trim().length >= 2) {
+                    suggestionsBox.classList.remove('hidden');
+                }
+            });
+        }
+
+        // Инициализация автодополнения при загрузке документа
+        document.addEventListener('DOMContentLoaded', function() {
+            setupAutocomplete('full-name', 'teacher-suggestions', '/api/teachers/search', 'full_name');
+            setupAutocomplete('group', 'group-suggestions', '/api/groups/search', 'group_name');
+        });
     </script>
 </body>
 </html>

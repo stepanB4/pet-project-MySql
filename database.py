@@ -78,6 +78,22 @@ class Slot(Base):
     # Связи
     classroom = relationship("Classroom", back_populates="slots")
 
+# Модель таблицы преподавателей
+class Teacher(Base):
+    __tablename__ = "teachers"
+
+    id = Column(Integer, primary_key=True, index=True)
+    full_name = Column(String(255), unique=True, nullable=False)
+    created_at = Column(TIMESTAMP, default=datetime.utcnow)
+
+
+# Модель таблицы групп
+class Group(Base):
+    __tablename__ = "groups"
+
+    id = Column(Integer, primary_key=True, index=True)
+    group_name = Column(String(100), unique=True, nullable=False)
+    created_at = Column(TIMESTAMP, default=datetime.utcnow)
 
 # Модель таблицы администраторов
 class Admin(Base):
