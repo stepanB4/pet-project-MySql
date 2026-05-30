@@ -44,7 +44,7 @@ import smtplib
 from email.mime.text import MIMEText
 from email.header import Header
 
-def send_confirmation_email(to_email: str, teacher_name: str, date_str: str, lesson_num: int, classroom: str, building: str):
+def send_confirmation_email(to_email: str, teacher_name: str, date_str: str, lesson_num: int, classroom: str, building: str, confirm: bool = True, message: str = ""):
     """Отправка письма через EmailJS API с обходом блокировки Cloudflare (Error 1010)"""
     import urllib.request
     import urllib.error
@@ -52,25 +52,37 @@ def send_confirmation_email(to_email: str, teacher_name: str, date_str: str, les
     import os
 
     service_id = os.getenv("EMAILJS_SERVICE_ID")
-    template_id = os.getenv("EMAILJS_TEMPLATE_ID")
+    
+    # Выбор шаблона в зависимости от статуса подтверждения
+    if confirm:
+        template_id = os.getenv("EMAILJS_TEMPLATE_CONFIRM_ID")
+    else:
+        template_id = os.getenv("EMAILJS_TEMPLATE_DENY_ID")
+        
     public_key = os.getenv("EMAILJS_PUBLIC_KEY")
     private_key = os.getenv("EMAILJS_PRIVATE_KEY")
 
     # Выводим логи для сверки в панели Render
     print(f"🔍 Проверка перед отправкой: ServiceID={service_id}, TemplateID={template_id}")
 
+    template_params = {
+        "to_email": to_email,
+        "teacher_name": teacher_name,
+        "date": date_str,
+        "lesson_num": lesson_num,
+        "classroom": classroom,
+        "building": building
+    }
+    
+    # Добавляем причину отказа только при отмене (confirm=False)
+    if not confirm:
+        template_params["message"] = message if message.strip() else "Не указана администратором"
+
     payload = {
         "service_id": service_id,
         "template_id": template_id,
         "user_id": public_key,
-        "template_params": {
-            "to_email": to_email,
-            "teacher_name": teacher_name,
-            "date": date_str,
-            "lesson_num": lesson_num,
-            "classroom": classroom,
-            "building": building
-        }
+        "template_params": template_params
     }
     
     if private_key:
@@ -88,7 +100,6 @@ def send_confirmation_email(to_email: str, teacher_name: str, date_str: str, les
     try:
         data = json.dumps(payload).encode("utf-8")
         with urllib.request.urlopen(req, data=data, timeout=10) as response:
-            # Читаем ответ сервера (EmailJS при успехе возвращает простую строку "OK")
             res_data = response.read().decode("utf-8")
             print(f"📧 EmailJS ответ сервера: {res_data}")
             print(f"📧 EmailJS: письмо успешно отправлено на {to_email}")
@@ -146,6 +157,9 @@ def get_russian_month_name(month_number: int) -> str:
 
 
 # Модели Pydantic
+
+class CancelBookingRequest(BaseModel):
+    message: Optional[str] = ""
 
 class TeacherCreate(BaseModel):
     full_name: str
@@ -553,6 +567,49 @@ class DatabaseService:
         if admin and admin.password_hash == password:
             return admin
         return None
+    
+    @staticmethod
+    def cancel_booking(db: Session, slot_id: int, message: str = ""):
+        slot = db.query(Slot).filter(Slot.id == slot_id).first()
+        if not slot:
+            return None
+
+        # Сохраняем данные для отправки письма перед очисткой слота
+        email = slot.email
+        teacher_name = slot.teacher_name
+        date_str = slot.date.strftime("%d.%m.%Y")
+        lesson_num = slot.lesson_number
+
+        classroom = db.query(Classroom).filter(Classroom.id == slot.classroom_id).first()
+        room_num = classroom.room_number if classroom else "Не указана"
+        bld_val = classroom.building.value if classroom else "Не указан"
+
+        # Делаем слот снова свободным и очищаем информацию о бронировании
+        slot.is_booked = False
+        slot.teacher_name = None
+        slot.group_name = None
+        slot.event_type = None
+        slot.previous_classroom = None
+        slot.email = None
+        slot.status = None 
+        slot.updated_at = datetime.utcnow()
+
+        db.commit()
+        db.refresh(slot)
+
+        if email:
+            send_confirmation_email(
+                to_email=email,
+                teacher_name=teacher_name or "Преподаватель",
+                date_str=date_str,
+                lesson_num=lesson_num,
+                classroom=room_num,
+                building=bld_val,
+                confirm=False,
+                message=message
+            )
+
+        return slot
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -960,14 +1017,6 @@ async def upload_slots_csv(
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.delete("/admin/slots/{slot_id}")
-async def delete_slot(slot_id: int, db: Session = Depends(get_db),
-                      current_admin: Admin = Depends(get_current_admin_api)):
-    success = DatabaseService.delete_slot(db, slot_id)
-    if not success:
-        raise HTTPException(status_code=404, detail="Слот не найден")
-    return {"message": "Слот удален"}
-
 @app.delete("/admin/slots/delete-all")
 async def delete_all_slots(
     db: Session = Depends(get_db),
@@ -980,6 +1029,14 @@ async def delete_all_slots(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/admin/slots/{slot_id}")
+async def delete_slot(slot_id: int, db: Session = Depends(get_db),
+                      current_admin: Admin = Depends(get_current_admin_api)):
+    success = DatabaseService.delete_slot(db, slot_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Слот не найден")
+    return {"message": "Слот удален"}
 
 # ==========================================
 # УПРАВЛЕНИЕ ДАННЫМИ: ПРЕПОДАВАТЕЛИ И ГРУППЫ
@@ -1095,6 +1152,18 @@ async def confirm_booking(slot_id: int, db: Session = Depends(get_db),
     if not booking:
         raise HTTPException(status_code=404, detail="Бронирование не найдено")
     return {"message": "Бронирование подтверждено"}
+
+@app.post("/admin/bookings/{slot_id}/cancel")
+async def cancel_booking(
+    slot_id: int, 
+    cancel_data: CancelBookingRequest,
+    db: Session = Depends(get_db),
+    current_admin: Admin = Depends(get_current_admin_api)
+):
+    booking = DatabaseService.cancel_booking(db, slot_id, message=cancel_data.message)
+    if not booking:
+        raise HTTPException(status_code=404, detail="Бронирование не найдено")
+    return {"message": "Бронирование отклонено, слот освобожден"}
 
 
 @app.post("/admin/bookings/confirm-all")

@@ -89,6 +89,9 @@
                                         class="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700">
                                     Подтвердить
                                 </button>
+                                <button onclick="rejectBooking(${slot.id})" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm font-medium ml-2">
+                                    Отклонить
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -780,6 +783,37 @@ date,lesson_number,classroom,building
                 }
             } catch (error) { alert('Ошибка сети'); }
         });
+
+        async function rejectBooking(slotId) {
+            // Меняем подсказку для администратора, указывая, что поле необязательное
+            const reason = prompt("Укажите причину отклонения заявки (опционально):");
+            
+            // Если администратор нажал кнопку "Отмена" в самом окне prompt - полностью выходим
+            if (reason === null) return; 
+            
+            // Если нажали "ОК", убираем лишние пробелы. Если ничего не ввели, будет пустая строка ""
+            const finalMessage = reason.trim();
+
+            try {
+                const response = await fetch(`/admin/bookings/${slotId}/cancel`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ message: finalMessage })
+                });
+
+                if (response.ok) {
+                    alert('Заявка успешно отклонена, уведомление отправлено.');
+                    location.reload(); 
+                } else {
+                    const error = await response.json();
+                    alert('Ошибка: ' + (error.detail || 'Не удалось отклонить заявку'));
+                }
+            } catch (error) {
+                alert('Ошибка сети: ' + error.message);
+            }
+        }
     </script>
 </body>
 </html>
