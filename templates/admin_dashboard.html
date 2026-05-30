@@ -269,66 +269,122 @@ date,lesson_number,classroom,building
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                 
-                <div class="p-4 border border-gray-200 rounded-lg bg-gray-50">
-                    <h3 class="font-semibold mb-4 text-lg">Преподаватели</h3>
-                    
-                    <div class="mb-6">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Добавить вручную</label>
-                        <form id="add-teacher-form" class="flex gap-2">
-                            <input type="text" id="teacher-fullname-input" required placeholder="Например, Иванов Иван Иванович"
-                                   class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-                                Добавить
-                            </button>
-                        </form>
+                <div class="p-4 border border-gray-200 rounded-lg bg-gray-50 flex flex-col justify-between">
+                    <div>
+                        <div class="flex justify-between items-center mb-4 pb-2 border-b">
+                            <h3 class="font-semibold text-lg">Преподаватели</h3>
+                            <a href="/admin/teachers/export-csv" class="bg-gray-200 hover:bg-gray-300 text-gray-800 text-xs px-2.5 py-1.5 rounded font-medium transition-colors">
+                                📥 Скачать текущий CSV
+                            </a>
+                        </div>
+                        
+                        <div class="mb-6">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Добавить вручную</label>
+                            <form id="add-teacher-form" class="flex gap-2">
+                                <input type="text" id="teacher-fullname-input" required placeholder="Применко В.Н." 
+                                       class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                                <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 transition-colors">
+                                    Добавить
+                                </button>
+                            </form>
+                        </div>
+
+                        <div class="mb-6 pt-4 border-t border-gray-200">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Удалить вручную</label>
+                            <form id="delete-teacher-form" class="flex gap-2">
+                                <input type="text" id="teacher-delete-input" required placeholder="Точное ФИО для удаления" 
+                                       class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 text-sm">
+                                <button type="submit" class="bg-red-600 text-white px-4 py-2 rounded text-sm hover:bg-red-700 transition-colors">
+                                    Удалить
+                                </button>
+                            </form>
+                        </div>
                     </div>
                     
-                    <div class="pt-4 border-t border-gray-200">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Загрузить из CSV</label>
-                        <form id="upload-teachers-csv-form" class="flex flex-col gap-2">
-                            <input type="file" id="teachers-csv-file" accept=".csv" required class="text-sm">
-                            <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 self-start">
-                                Загрузить CSV
-                            </button>
-                        </form>
-                        <div class="mt-3 text-sm text-gray-600">
-                            <p class="font-medium">Шаблон CSV (1 столбец):</p>
-                            <pre class="bg-white border border-gray-200 p-2 mt-1 rounded text-xs">ФИО
-Иванов Иван Иванович</pre>
+                    <div>
+                        <div class="pt-4 border-t border-gray-200 mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Массовое добавление через CSV</label>
+                            <form id="upload-teachers-csv-form" class="flex items-center gap-2">
+                                <input type="file" id="teachers-csv-file" accept=".csv" required class="text-xs flex-1">
+                                <button type="submit" class="bg-green-600 text-white px-3 py-1.5 rounded text-xs hover:bg-green-700 transition-colors">
+                                    Загрузить
+                                </button>
+                            </form>
+                        </div>
+
+                        <div class="pt-4 border-t border-gray-200">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Массовое удаление через CSV</label>
+                            <form id="delete-teachers-csv-form" class="flex items-center gap-2">
+                                <input type="file" id="teachers-delete-csv-file" accept=".csv" required class="text-xs flex-1">
+                                <button type="submit" class="bg-red-700 text-white px-3 py-1.5 rounded text-xs hover:bg-red-800 transition-colors">
+                                    Исключить список
+                                </button>
+                            </form>
+                            <div class="mt-2 text-xs text-gray-500 italic">
+                                Шаблон аналогичен: один столбец с заголовком <code class="bg-gray-200 px-1 rounded">ФИО</code>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="p-4 border border-gray-200 rounded-lg bg-gray-50">
-                    <h3 class="font-semibold mb-4 text-lg">Группы</h3>
-                    
-                    <div class="mb-6">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Добавить вручную</label>
-                        <form id="add-group-form" class="flex gap-2">
-                            <input type="text" id="group-name-input" required placeholder="Например, ФН11-41Б"
-                                   class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-                                Добавить
-                            </button>
-                        </form>
+                <div class="p-4 border border-gray-200 rounded-lg bg-gray-50 flex flex-col justify-between">
+                    <div>
+                        <div class="flex justify-between items-center mb-4 pb-2 border-b">
+                            <h3 class="font-semibold text-lg">Группы</h3>
+                            <a href="/admin/groups/export-csv" class="bg-gray-200 hover:bg-gray-300 text-gray-800 text-xs px-2.5 py-1.5 rounded font-medium transition-colors">
+                                📥 Скачать текущий CSV
+                            </a>
+                        </div>
+                        
+                        <div class="mb-6">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Добавить вручную</label>
+                            <form id="add-group-form" class="flex gap-2">
+                                <input type="text" id="group-name-input" required placeholder="ФН11-41" 
+                                       class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                                <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 transition-colors">
+                                    Добавить
+                                </button>
+                            </form>
+                        </div>
+
+                        <div class="mb-6 pt-4 border-t border-gray-200">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Удалить вручную</label>
+                            <form id="delete-group-form" class="flex gap-2">
+                                <input type="text" id="group-delete-input" required placeholder="Точное название для удаления" 
+                                       class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 text-sm">
+                                <button type="submit" class="bg-red-600 text-white px-4 py-2 rounded text-sm hover:bg-red-700 transition-colors">
+                                    Удалить
+                                </button>
+                            </form>
+                        </div>
                     </div>
                     
-                    <div class="pt-4 border-t border-gray-200">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Загрузить из CSV</label>
-                        <form id="upload-groups-csv-form" class="flex flex-col gap-2">
-                            <input type="file" id="groups-csv-file" accept=".csv" required class="text-sm">
-                            <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 self-start">
-                                Загрузить CSV
-                            </button>
-                        </form>
-                        <div class="mt-3 text-sm text-gray-600">
-                            <p class="font-medium">Шаблон CSV (1 столбец):</p>
-                            <pre class="bg-white border border-gray-200 p-2 mt-1 rounded text-xs">Группа
-ФН11-41Б
-ИУ7-41Б</pre>
+                    <div>
+                        <div class="pt-4 border-t border-gray-200 mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Массовое добавление через CSV</label>
+                            <form id="upload-groups-csv-form" class="flex items-center gap-2">
+                                <input type="file" id="groups-csv-file" accept=".csv" required class="text-xs flex-1">
+                                <button type="submit" class="bg-green-600 text-white px-3 py-1.5 rounded text-xs hover:bg-green-700 transition-colors">
+                                    Загрузить
+                                </button>
+                            </form>
+                        </div>
+
+                        <div class="pt-4 border-t border-gray-200">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Массовое удаление через CSV</label>
+                            <form id="delete-groups-csv-form" class="flex items-center gap-2">
+                                <input type="file" id="groups-delete-csv-file" accept=".csv" required class="text-xs flex-1">
+                                <button type="submit" class="bg-red-700 text-white px-3 py-1.5 rounded text-xs hover:bg-red-800 transition-colors">
+                                    Исключить список
+                                </button>
+                            </form>
+                            <div class="mt-2 text-xs text-gray-500 italic">
+                                Шаблон аналогичен: один столбец с заголовком <code class="bg-gray-200 px-1 rounded">Группа</code>
+                            </div>
                         </div>
                     </div>
                 </div>
+                
             </div>
         </div>
     </div>
@@ -629,6 +685,92 @@ date,lesson_number,classroom,building
             } catch (error) {
                 alert('Ошибка сети: ' + error.message);
             }
+        });
+
+        // --- РУЧНОЕ УДАЛЕНИЕ ПРЕПОДАВАТЕЛЯ ---
+        document.getElementById('delete-teacher-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const input = document.getElementById('teacher-delete-input');
+            if(!confirm(`Вы уверены, что хотите удалить преподавателя "${input.value.trim()}"?`)) return;
+            
+            try {
+                const response = await fetch('/admin/teachers/delete', {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ full_name: input.value.trim() })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    alert(data.message);
+                    input.value = '';
+                } else {
+                    alert('Ошибка: ' + (data.detail || 'Не удалось удалить'));
+                }
+            } catch (error) { alert('Ошибка сети'); }
+        });
+
+        // --- РУЧНОЕ УДАЛЕНИЕ ГРУППЫ ---
+        document.getElementById('delete-group-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const input = document.getElementById('group-delete-input');
+            if(!confirm(`Вы уверены, что хотите удалить группу "${input.value.trim()}"?`)) return;
+            
+            try {
+                const response = await fetch('/admin/groups/delete', {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ group_name: input.value.trim() })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    alert(data.message);
+                    input.value = '';
+                } else {
+                    alert('Ошибка: ' + (data.detail || 'Не удалось удалить'));
+                }
+            } catch (error) { alert('Ошибка сети'); }
+        });
+
+        // --- УДАЛЕНИЕ ПРЕПОДАВАТЕЛЕЙ СПИСКОМ ИЗ CSV ---
+        document.getElementById('delete-teachers-csv-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const fileInput = document.getElementById('teachers-delete-csv-file');
+            if(!confirm('Запустить массовое удаление преподавателей по списку из файла?')) return;
+            
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            
+            try {
+                const response = await fetch('/admin/teachers/delete-csv', { method: 'POST', body: formData });
+                const data = await response.json();
+                if (response.ok) {
+                    alert(data.message);
+                    fileInput.value = '';
+                } else {
+                    alert('Ошибка: ' + (data.detail || 'Ошибка обработки CSV файла'));
+                }
+            } catch (error) { alert('Ошибка сети'); }
+        });
+
+        // --- УДАЛЕНИЕ ГРУПП СПИСКОМ ИЗ CSV ---
+        document.getElementById('delete-groups-csv-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const fileInput = document.getElementById('groups-delete-csv-file');
+            if(!confirm('Запустить массовое удаление групп по списку из файла?')) return;
+            
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            
+            try {
+                const response = await fetch('/admin/groups/delete-csv', { method: 'POST', body: formData });
+                const data = await response.json();
+                if (response.ok) {
+                    alert(data.message);
+                    fileInput.value = '';
+                } else {
+                    alert('Ошибка: ' + (data.detail || 'Ошибка обработки CSV файла'));
+                }
+            } catch (error) { alert('Ошибка сети'); }
         });
     </script>
 </body>

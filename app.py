@@ -183,6 +183,130 @@ class AdminLogin(BaseModel):
     password: str
 
 
+from fastapi.responses import StreamingResponse
+
+class TeacherDelete(BaseModel):
+    full_name: str
+
+class GroupDelete(BaseModel):
+    group_name: str
+
+# --- А) СКАЧИВАНИЕ ТЕКУЩИХ ДАННЫХ В CSV ---
+
+@app.get("/admin/teachers/export-csv")
+async def export_teachers_csv(db: Session = Depends(get_db)):
+    teachers = db.query(Teacher).all()
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['ФИО'])
+    for t in teachers:
+        writer.writerow([t.full_name])
+    output.seek(0)
+    return StreamingResponse(
+        io.BytesIO(output.getvalue().encode('utf-8-sig')),
+        media_type="text/csv; charset=utf-8-sig",
+        headers={"Content-Disposition": "attachment; filename=teachers_current.csv"}
+    )
+
+@app.get("/admin/groups/export-csv")
+async def export_groups_csv(db: Session = Depends(get_db)):
+    groups = db.query(Group).all()
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['Группа'])
+    for g in groups:
+        writer.writerow([g.group_name])
+    output.seek(0)
+    return StreamingResponse(
+        io.BytesIO(output.getvalue().encode('utf-8-sig')),
+        media_type="text/csv; charset=utf-8-sig",
+        headers={"Content-Disposition": "attachment; filename=groups_current.csv"}
+    )
+
+# --- Б) УДАЛЕНИЕ ВРУЧНУЮ ---
+
+@app.delete("/admin/teachers/delete")
+async def delete_teacher(data: TeacherDelete, db: Session = Depends(get_db)):
+    teacher = db.query(Teacher).filter(Teacher.full_name == data.full_name.strip()).first()
+    if not teacher:
+        raise HTTPException(status_code=404, detail="Преподаватель с таким ФИО не найден")
+    db.delete(teacher)
+    db.commit()
+    return {"message": f"Преподаватель '{data.full_name}' успешно удален"}
+
+@app.delete("/admin/groups/delete")
+async def delete_group(data: GroupDelete, db: Session = Depends(get_db)):
+    group = db.query(Group).filter(Group.group_name == data.group_name.strip()).first()
+    if not group:
+        raise HTTPException(status_code=404, detail="Группа с таким номером не найдена")
+    db.delete(group)
+    db.commit()
+    return {"message": f"Группа '{data.group_name}' успешно удалена"}
+
+# --- В) УДАЛЕНИЕ СПИСКА ЧЕРЕЗ CSV ---
+
+@app.post("/admin/teachers/delete-csv")
+async def delete_teachers_csv(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    try:
+        contents = await file.read()
+        buffer = io.StringIO(contents.decode('utf-8-sig'))
+        reader = csv.reader(buffer)
+        header = next(reader, None)
+        
+        names_to_delete = []
+        if header and header[0].strip().lower() != 'фио':
+            names_to_delete.append(header[0].strip())
+        for row in reader:
+            if row and row[0].strip():
+                names_to_delete.append(row[0].strip())
+                
+        deleted_count = 0
+        not_found_count = 0
+        
+        for name in names_to_delete:
+            teacher = db.query(Teacher).filter(Teacher.full_name == name).first()
+            if teacher:
+                db.delete(teacher)
+                deleted_count += 1
+            else:
+                not_found_count += 1
+                
+        db.commit()
+        return {"message": f"Успешно удалено преподавателей: {deleted_count}. Не найдено в базе: {not_found_count}."}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Ошибка обработки CSV: {str(e)}")
+
+@app.post("/admin/groups/delete-csv")
+async def delete_groups_csv(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    try:
+        contents = await file.read()
+        buffer = io.StringIO(contents.decode('utf-8-sig'))
+        reader = csv.reader(buffer)
+        header = next(reader, None)
+        
+        groups_to_delete = []
+        if header and header[0].strip().lower() != 'группа':
+            groups_to_delete.append(header[0].strip())
+        for row in reader:
+            if row and row[0].strip():
+                groups_to_delete.append(row[0].strip())
+                
+        deleted_count = 0
+        not_found_count = 0
+        
+        for g_name in groups_to_delete:
+            group = db.query(Group).filter(Group.group_name == g_name).first()
+            if group:
+                db.delete(group)
+                deleted_count += 1
+            else:
+                not_found_count += 1
+                
+        db.commit()
+        return {"message": f"Успешно удалено групп: {deleted_count}. Не найдено в базе: {not_found_count}."}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Ошибка обработки CSV: {str(e)}")
+
 # Функции для календаря
 def get_week_dates(start_date: date):
     return [start_date + timedelta(days=i) for i in range(7)]
