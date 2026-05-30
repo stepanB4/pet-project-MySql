@@ -274,7 +274,7 @@ date,lesson_number,classroom,building
                         <div class="flex justify-between items-center mb-4 pb-2 border-b">
                             <h3 class="font-semibold text-lg">Преподаватели</h3>
                             <a href="/admin/teachers/export-csv" class="bg-gray-200 hover:bg-gray-300 text-gray-800 text-xs px-2.5 py-1.5 rounded font-medium transition-colors">
-                                📥 Скачать текущий CSV
+                                Скачать текущий CSV
                             </a>
                         </div>
                         
@@ -303,7 +303,7 @@ date,lesson_number,classroom,building
                     
                     <div>
                         <div class="pt-4 border-t border-gray-200 mb-4">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Массовое добавление через CSV</label>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Добавление преподавателей через CSV</label>
                             <form id="upload-teachers-csv-form" class="flex items-center gap-2">
                                 <input type="file" id="teachers-csv-file" accept=".csv" required class="text-xs flex-1">
                                 <button type="submit" class="bg-green-600 text-white px-3 py-1.5 rounded text-xs hover:bg-green-700 transition-colors">
@@ -313,15 +313,19 @@ date,lesson_number,classroom,building
                         </div>
 
                         <div class="pt-4 border-t border-gray-200">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Массовое удаление через CSV</label>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Удаление преподавателей через CSV</label>
                             <form id="delete-teachers-csv-form" class="flex items-center gap-2">
                                 <input type="file" id="teachers-delete-csv-file" accept=".csv" required class="text-xs flex-1">
                                 <button type="submit" class="bg-red-700 text-white px-3 py-1.5 rounded text-xs hover:bg-red-800 transition-colors">
                                     Исключить список
                                 </button>
                             </form>
-                            <div class="mt-2 text-xs text-gray-500 italic">
-                                Шаблон аналогичен: один столбец с заголовком <code class="bg-gray-200 px-1 rounded">ФИО</code>
+                            <div class="mt-3 text-sm text-gray-600">
+                                <p class="font-medium">Формат CSV:</p>
+                                <pre class="bg-gray-100 p-2 mt-1 rounded text-xs">
+            ФИО
+            Иванов Иван Иванович
+            Петров Петр Петрович</pre>
                             </div>
                         </div>
                     </div>
@@ -332,7 +336,7 @@ date,lesson_number,classroom,building
                         <div class="flex justify-between items-center mb-4 pb-2 border-b">
                             <h3 class="font-semibold text-lg">Группы</h3>
                             <a href="/admin/groups/export-csv" class="bg-gray-200 hover:bg-gray-300 text-gray-800 text-xs px-2.5 py-1.5 rounded font-medium transition-colors">
-                                📥 Скачать текущий CSV
+                                Скачать текущий CSV
                             </a>
                         </div>
                         
@@ -378,8 +382,12 @@ date,lesson_number,classroom,building
                                     Исключить список
                                 </button>
                             </form>
-                            <div class="mt-2 text-xs text-gray-500 italic">
-                                Шаблон аналогичен: один столбец с заголовком <code class="bg-gray-200 px-1 rounded">Группа</code>
+                            <div class="mt-3 text-sm text-gray-600">
+                                <p class="font-medium">Формат CSV:</p>
+                                <pre class="bg-gray-100 p-2 mt-1 rounded text-xs">
+            Группа
+            ФН11-43Б
+            ИУ2-53М</pre>
                             </div>
                         </div>
                     </div>
