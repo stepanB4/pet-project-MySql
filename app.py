@@ -44,70 +44,70 @@ import smtplib
 from email.mime.text import MIMEText
 from email.header import Header
 
-def send_confirmation_email(to_email: str, teacher_name: str, date_str: str, lesson_num: int, classroom: str, building: str, confirm: bool = True, message: str = ""):
-    """Отправка письма через EmailJS API с обходом блокировки Cloudflare (Error 1010)"""
-    import urllib.request
-    import urllib.error
-    import json
-    import os
+import smtplib
+from email.mime.text import MIMEText
+from email.header import Header
 
-    service_id = os.getenv("EMAILJS_SERVICE_ID")
+def send_confirmation_email(
+    to_email: str, 
+    teacher_name: str, 
+    date_str: str, 
+    lesson_num: int, 
+    classroom: str, 
+    building: str, 
+    confirm: bool = True, 
+    message: str = ""
+):
+    """Отправка email-уведомления через локальный/факультетский SMTP-сервер"""
     
-    # Выбор шаблона в зависимости от статуса подтверждения
+    smtp_host = os.getenv("SMTP_HOST", "localhost")
+    smtp_port = int(os.getenv("SMTP_PORT", "25"))
+    smtp_user = os.getenv("SMTP_USER", "")
+    smtp_password = os.getenv("SMTP_PASSWORD", "")
+    from_email = os.getenv("SMTP_FROM", "noreply@bmstu.ru")
+
+    # Формируем тему и текст письма
     if confirm:
-        template_id = os.getenv("EMAILJS_TEMPLATE_CONFIRM_ID")
+        subject = "Подтверждение бронирования аудитории МГТУ"
+        text_content = (
+            f"Здравствуйте, {teacher_name}!\n\n"
+            f"Ваша заявка на бронирование аудитории успешно ПОДТВЕРЖДЕНА.\n\n"
+            f"📅 Дата: {date_str}\n"
+            f"⏰ Пара: №{lesson_num}\n"
+            f"🏫 Аудитория: {classroom} ({building})\n\n"
+            f"С уважением,\nАдминистрация системы бронирования."
+        )
     else:
-        template_id = os.getenv("EMAILJS_TEMPLATE_DENY_ID")
-        
-    public_key = os.getenv("EMAILJS_PUBLIC_KEY")
-    private_key = os.getenv("EMAILJS_PRIVATE_KEY")
+        subject = "Отмена бронирования аудитории МГТУ"
+        reason_str = message.strip() if message.strip() else "Не указана администратором"
+        text_content = (
+            f"Здравствуйте, {teacher_name}!\n\n"
+            f"К сожалению, ваша заявка на бронирование аудитории была ОТКЛОНЕНА.\n\n"
+            f"📅 Дата: {date_str}\n"
+            f"⏰ Пара: №{lesson_num}\n"
+            f"🏫 Аудитория: {classroom} ({building})\n"
+            f"❓ Причина: {reason_str}\n\n"
+            f"С уважением,\nАдминистрация системы бронирования."
+        )
 
-    # Выводим логи для сверки в панели Render
-    print(f"🔍 Проверка перед отправкой: ServiceID={service_id}, TemplateID={template_id}")
+    # Собираем MIME-сообщение
+    msg = MIMEText(text_content, 'plain', 'utf-8')
+    msg['Subject'] = Header(subject, 'utf-8')
+    msg['From'] = Header(f"Система бронирования <{from_email}>", 'utf-8')
+    msg['To'] = to_email
 
-    template_params = {
-        "to_email": to_email,
-        "teacher_name": teacher_name,
-        "date": date_str,
-        "lesson_num": lesson_num,
-        "classroom": classroom,
-        "building": building
-    }
-    
-    # Добавляем причину отказа только при отмене (confirm=False)
-    if not confirm:
-        template_params["message"] = message if message.strip() else "Не указана администратором"
-
-    payload = {
-        "service_id": service_id,
-        "template_id": template_id,
-        "user_id": public_key,
-        "template_params": template_params
-    }
-    
-    if private_key:
-        payload["accessToken"] = private_key
-
-    req = urllib.request.Request("https://api.emailjs.com/api/v1.0/email/send", method="POST")
-    
-    # КРИТИЧЕСКИ ВАЖНО: Маскируемся под реальный браузер, чтобы пройти проверку Cloudflare
-    req.add_header("Content-Type", "application/json")
-    req.add_header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-    req.add_header("Accept", "application/json, text/plain, */*")
-    req.add_header("Accept-Language", "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7")
-    req.add_header("Origin", "https://api.emailjs.com")
-    
     try:
-        data = json.dumps(payload).encode("utf-8")
-        with urllib.request.urlopen(req, data=data, timeout=10) as response:
-            res_data = response.read().decode("utf-8")
-            print(f"📧 EmailJS ответ сервера: {res_data}")
-            print(f"📧 EmailJS: письмо успешно отправлено на {to_email}")
-    except urllib.error.HTTPError as e:
-        error_msg = e.read().decode('utf-8')
-        print(f"❌ Ошибка API EmailJS ({e.code}): {error_msg}")
+        with smtplib.SMTP(smtp_host, smtp_port, timeout=10) as server:
+            # Если требуется авторизация (например, при внешнем SMTP)
+            if smtp_user and smtp_password:
+                server.starttls()
+                server.login(smtp_user, smtp_password)
+            
+            server.sendmail(from_email, [to_email], msg.as_string())
+            print(f"📧 [SMTP] Письмо успешно отправлено на {to_email}")
+            
     except Exception as e:
-        print(f"❌ Внутренняя системная ошибка: {str(e)}")
+        print(f"❌ [SMTP] Ошибка при отправке письма на {to_email}: {str(e)}")
 
 # Функция для создания токена
 def create_access_token(data: dict, expires_delta: timedelta = timedelta(hours=2)):
