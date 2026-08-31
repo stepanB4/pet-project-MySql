@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    container_name: booking_web
+    restart: always
+    ports:
+      - "127.0.0.1:8000:8000" # Пробрасываем порт только на localhost (Nginx будет смотреть сюда)
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - mail
+    networks:
+      - booking_net
+
+  db:
+    image: mysql:8.0
+    container_name: booking_db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - booking_net
+
+  # Локальный почтовый релей (заменит внешний EmailJS)
+  mail:
+    image: bytemark/smtp
+    container_name: booking_mail
+    restart: always
+    networks:
+      - booking_net
+
+volumes:
+  mysql_data:
+
+networks:
+  booking_net:
