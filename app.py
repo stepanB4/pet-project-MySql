@@ -25,6 +25,8 @@ from database import (
 
 import time
 
+app = FastAPI(title="Booking System")
+
 @app.on_event("startup")
 def startup_event():
     """Ожидание готовности базы данных перед созданием таблиц"""
@@ -40,8 +42,7 @@ def startup_event():
                 print(f"❌ Не удалось подключиться к БД: {e}")
                 raise e
             time.sleep(3)
-            
-app = FastAPI(title="Booking System")
+
 templates = Jinja2Templates(directory="templates")
 templates.env.cache = None
 security = HTTPBasic()
