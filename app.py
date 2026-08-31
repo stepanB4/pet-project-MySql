@@ -23,8 +23,24 @@ from database import (
     get_lesson_time, create_tables
 )
 
+import time
 
-create_tables()
+@app.on_event("startup")
+def startup_event():
+    """Ожидание готовности базы данных перед созданием таблиц"""
+    max_retries = 10
+    for i in range(max_retries):
+        try:
+            print(f"🔄 Попытка подключения к БД ({i+1}/{max_retries})...")
+            create_tables()
+            print("✅ Подключение к БД успешно, таблицы созданы!")
+            break
+        except Exception as e:
+            if i == max_retries - 1:
+                print(f"❌ Не удалось подключиться к БД: {e}")
+                raise e
+            time.sleep(3)
+            
 app = FastAPI(title="Booking System")
 templates = Jinja2Templates(directory="templates")
 templates.env.cache = None
