@@ -48,6 +48,7 @@ def startup_event():
             time.sleep(3)
 
 templates = Jinja2Templates(directory="templates")
+templates.env.globals["base_path"] = BASE_PATH
 templates.env.cache = None
 security = HTTPBasic()
 
@@ -60,10 +61,6 @@ RUSSIAN_MONTHS = {
 SECRET_KEY = "SUPER_SECRET_KEY_KEEP_IT_SAFE"  # в os.getenv()
 ALGORITHM = "HS256"
 COOKIE_NAME = "admin_access_token"
-
-import smtplib
-from email.mime.text import MIMEText
-from email.header import Header
 
 import smtplib
 from email.mime.text import MIMEText
@@ -140,7 +137,7 @@ def create_access_token(data: dict, expires_delta: timedelta = timedelta(hours=2
 # Зависимость для HTML-страниц (Редирект на логин при ошибке)
 def get_current_admin_html(request: Request, db: Session = Depends(get_db)):
     token = request.cookies.get(COOKIE_NAME)
-    login_url = f"{BASE_PATH}/admin/login"
+    login_url = f"{BASE_PATH}/admin/login" if BASE_PATH else "/admin/login"
     if not token:
         raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": login_url})
     try:
@@ -794,8 +791,9 @@ async def create_booking(booking: BookingCreate, db: Session = Depends(get_db)):
 
 @app.get("/admin/logout")
 async def admin_logout():
-    response = RedirectResponse(url=f"{BASE_PATH}/admin/login", status_code=status.HTTP_302_FOUND)
-    response.delete_cookie(key="admin_access_token", path="/")
+    redirect_url = f"{BASE_PATH}/admin/login" if BASE_PATH else "/admin/login"
+    response = RedirectResponse(url=redirect_url, status_code=status.HTTP_302_FOUND)
+    response.delete_cookie(key=COOKIE_NAME, path="/")
     return response
 
 # Роуты для администратора
@@ -826,7 +824,8 @@ async def admin_login(
         secure=False 
     )
 
-    return {"message": "Успешный вход", "redirect": f"{BASE_PATH}/admin/dashboard"}
+    redirect_url = f"{BASE_PATH}/admin/dashboard" if BASE_PATH else "/admin/dashboard"
+    return {"message": "Успешный вход", "redirect": redirect_url}
 
 
 @app.get("/admin/dashboard", response_class=HTMLResponse)
