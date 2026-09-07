@@ -34,7 +34,7 @@ app = FastAPI(title="Booking System", root_path=BASE_PATH)
 @app.on_event("startup")
 def startup_event():
     """Ожидание готовности базы данных перед созданием таблиц"""
-    max_retries = 2
+    max_retries = 10
     for i in range(max_retries):
         try:
             print(f"🔄 Попытка подключения к БД ({i+1}/{max_retries})...")
@@ -229,7 +229,7 @@ class GroupDelete(BaseModel):
 
 # --- А) СКАЧИВАНИЕ ТЕКУЩИХ ДАННЫХ В CSV ---
 
-@app.get("${BASE_PATH}/admin/teachers/export-csv")
+@app.get("/admin/teachers/export-csv")
 async def export_teachers_csv(db: Session = Depends(get_db)):
     teachers = db.query(Teacher).all()
     output = io.StringIO()
@@ -244,7 +244,7 @@ async def export_teachers_csv(db: Session = Depends(get_db)):
         headers={"Content-Disposition": "attachment; filename=teachers_current.csv"}
     )
 
-@app.get("${BASE_PATH}/admin/groups/export-csv")
+@app.get("/admin/groups/export-csv")
 async def export_groups_csv(db: Session = Depends(get_db)):
     groups = db.query(Group).all()
     output = io.StringIO()
@@ -261,7 +261,7 @@ async def export_groups_csv(db: Session = Depends(get_db)):
 
 # --- Б) УДАЛЕНИЕ ВРУЧНУЮ ---
 
-@app.delete("${BASE_PATH}/admin/teachers/delete")
+@app.delete("/admin/teachers/delete")
 async def delete_teacher(data: TeacherDelete, db: Session = Depends(get_db)):
     teacher = db.query(Teacher).filter(Teacher.full_name == data.full_name.strip()).first()
     if not teacher:
@@ -270,7 +270,7 @@ async def delete_teacher(data: TeacherDelete, db: Session = Depends(get_db)):
     db.commit()
     return {"message": f"Преподаватель '{data.full_name}' успешно удален"}
 
-@app.delete("${BASE_PATH}/admin/groups/delete")
+@app.delete("/admin/groups/delete")
 async def delete_group(data: GroupDelete, db: Session = Depends(get_db)):
     group = db.query(Group).filter(Group.group_name == data.group_name.strip()).first()
     if not group:
@@ -281,7 +281,7 @@ async def delete_group(data: GroupDelete, db: Session = Depends(get_db)):
 
 # --- В) УДАЛЕНИЕ СПИСКА ЧЕРЕЗ CSV ---
 
-@app.post("${BASE_PATH}/admin/teachers/delete-csv")
+@app.post("/admin/teachers/delete-csv")
 async def delete_teachers_csv(file: UploadFile = File(...), db: Session = Depends(get_db)):
     try:
         contents = await file.read()
@@ -312,7 +312,7 @@ async def delete_teachers_csv(file: UploadFile = File(...), db: Session = Depend
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Ошибка обработки CSV: {str(e)}")
 
-@app.post("${BASE_PATH}/admin/groups/delete-csv")
+@app.post("/admin/groups/delete-csv")
 async def delete_groups_csv(file: UploadFile = File(...), db: Session = Depends(get_db)):
     try:
         contents = await file.read()
@@ -634,7 +634,7 @@ class DatabaseService:
         return slot
 
 
-@app.get("${BASE_PATH}", response_class=HTMLResponse)
+@app.get("/", response_class=HTMLResponse)
 async def teacher_calendar(request: Request, db: Session = Depends(get_db)):
 
     today = date.today()
@@ -671,7 +671,7 @@ async def teacher_calendar(request: Request, db: Session = Depends(get_db)):
     })
 
 
-@app.get("${BASE_PATH}/api/calendar/{year}/{month}")
+@app.get("/api/calendar/{year}/{month}")
 async def get_calendar(year: int, month: int, db: Session = Depends(get_db)):
     month_calendar = get_month_calendar(year, month)
     month_slots = DatabaseService.get_available_slots_by_month(db, year, month)
@@ -690,7 +690,7 @@ async def get_calendar(year: int, month: int, db: Session = Depends(get_db)):
     }
 
 
-@app.get("${BASE_PATH}/api/slots/month/{year}/{month}")
+@app.get("/api/slots/month/{year}/{month}")
 async def get_month_slots_summary(year: int, month: int, db: Session = Depends(get_db)):
     slots = DatabaseService.get_available_slots_by_month(db, year, month)
 
@@ -704,7 +704,7 @@ async def get_month_slots_summary(year: int, month: int, db: Session = Depends(g
     }
 
 
-@app.get("${BASE_PATH}/api/slots/date/{slot_date}")
+@app.get("/api/slots/date/{slot_date}")
 async def get_slots_by_date(slot_date: date, db: Session = Depends(get_db)):
     slots = DatabaseService.get_available_slots_by_date(db, slot_date)
     result = []
@@ -724,7 +724,7 @@ async def get_slots_by_date(slot_date: date, db: Session = Depends(get_db)):
     return result
 
 
-@app.get("${BASE_PATH}/api/slots/week/{start_date}")
+@app.get("/api/slots/week/{start_date}")
 async def get_slots_by_week(start_date: date, db: Session = Depends(get_db)):
     slots = DatabaseService.get_available_slots_by_week(db, start_date)
 
@@ -753,7 +753,7 @@ async def get_slots_by_week(start_date: date, db: Session = Depends(get_db)):
         "slots": week_slots
     }
 
-@app.get("${BASE_PATH}/api/teachers/search")
+@app.get("/api/teachers/search")
 async def search_teachers(q: str = "", db: Session = Depends(get_db)):
     if not q:
         return []
@@ -761,14 +761,14 @@ async def search_teachers(q: str = "", db: Session = Depends(get_db)):
     teachers = db.query(Teacher).filter(Teacher.full_name.ilike(f"%{q}%")).limit(10).all()
     return [{"id": t.id, "full_name": t.full_name} for t in teachers]
 
-@app.get("${BASE_PATH}/api/groups/search")
+@app.get("/api/groups/search")
 async def search_groups(q: str = "", db: Session = Depends(get_db)):
     if not q:
         return []
     groups = db.query(Group).filter(Group.group_name.ilike(f"%{q}%")).limit(10).all()
     return [{"id": g.id, "group_name": g.group_name} for g in groups]
 
-@app.post("${BASE_PATH}/api/bookings/")
+@app.post("/api/bookings/")
 async def create_booking(booking: BookingCreate, db: Session = Depends(get_db)):
     slot = DatabaseService.get_slot_by_id(db, booking.slot_id)
     if not slot or slot.is_booked:
@@ -792,19 +792,19 @@ async def create_booking(booking: BookingCreate, db: Session = Depends(get_db)):
 
     return {"message": "Бронирование создано", "booking_id": created_booking.id}
 
-@app.get("${BASE_PATH}/admin/logout")
+@app.get("/admin/logout")
 async def admin_logout():
     response = RedirectResponse(url=f"{BASE_PATH}/admin/login", status_code=status.HTTP_302_FOUND)
-    response.delete_cookie(key="admin_access_token", path="${BASE_PATH}")
+    response.delete_cookie(key="admin_access_token", path="/")
     return response
 
 # Роуты для администратора
-@app.get("${BASE_PATH}/admin/login", response_class=HTMLResponse)
+@app.get("/admin/login", response_class=HTMLResponse)
 async def admin_login_page(request: Request):
     return templates.TemplateResponse("admin_login.html", {"request": request})
 
 
-@app.post("${BASE_PATH}/admin/login")
+@app.post("/admin/login")
 async def admin_login(
     login_data: AdminLogin, 
     response: Response, 
@@ -829,7 +829,7 @@ async def admin_login(
     return {"message": "Успешный вход", "redirect": f"{BASE_PATH}/admin/dashboard"}
 
 
-@app.get("${BASE_PATH}/admin/dashboard", response_class=HTMLResponse)
+@app.get("/admin/dashboard", response_class=HTMLResponse)
 async def admin_dashboard(
     request: Request, 
     db: Session = Depends(get_db),
@@ -896,7 +896,7 @@ async def admin_dashboard(
         "slots": slots_list
     })
 
-@app.post("${BASE_PATH}/admin/slots/")
+@app.post("/admin/slots/")
 async def create_slot(
     slot: SlotCreate, 
     db: Session = Depends(get_db),
@@ -906,7 +906,7 @@ async def create_slot(
     return {"message": "Слот создан", "slot_id": created_slot.id}
 
 
-@app.post("${BASE_PATH}/admin/slots/upload-csv")
+@app.post("/admin/slots/upload-csv")
 async def upload_slots_csv(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
@@ -1039,7 +1039,7 @@ async def upload_slots_csv(
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.delete("${BASE_PATH}/admin/slots/delete-all")
+@app.delete("/admin/slots/delete-all")
 async def delete_all_slots(
     db: Session = Depends(get_db),
     current_admin: Admin = Depends(get_current_admin_api)
@@ -1052,7 +1052,7 @@ async def delete_all_slots(
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.delete("${BASE_PATH}/admin/slots/{slot_id}")
+@app.delete("/admin/slots/{slot_id}")
 async def delete_slot(slot_id: int, db: Session = Depends(get_db),
                       current_admin: Admin = Depends(get_current_admin_api)):
     success = DatabaseService.delete_slot(db, slot_id)
@@ -1065,7 +1065,7 @@ async def delete_slot(slot_id: int, db: Session = Depends(get_db),
 # ==========================================
 
 # 1. Ручное добавление преподавателя
-@app.post("${BASE_PATH}/admin/teachers/add")
+@app.post("/admin/teachers/add")
 async def add_teacher(data: TeacherCreate, db: Session = Depends(get_db)):
     name = data.full_name.strip()
     if not name:
@@ -1081,7 +1081,7 @@ async def add_teacher(data: TeacherCreate, db: Session = Depends(get_db)):
     return {"message": f"Преподаватель '{name}' успешно добавлен"}
 
 # 2. Загрузка списка преподавателей из CSV
-@app.post("${BASE_PATH}/admin/teachers/upload-csv")
+@app.post("/admin/teachers/upload-csv")
 async def upload_teachers_csv(file: UploadFile = File(...), db: Session = Depends(get_db)):
     try:
         contents = await file.read()
@@ -1117,7 +1117,7 @@ async def upload_teachers_csv(file: UploadFile = File(...), db: Session = Depend
 
 
 # 3. Ручное добавление группы
-@app.post("${BASE_PATH}/admin/groups/add")
+@app.post("/admin/groups/add")
 async def add_group(data: GroupCreate, db: Session = Depends(get_db)):
     group_name = data.group_name.strip()
     if not group_name:
@@ -1133,7 +1133,7 @@ async def add_group(data: GroupCreate, db: Session = Depends(get_db)):
     return {"message": f"Группа '{group_name}' успешно добавлена"}
 
 # 4. Загрузка списка групп из CSV
-@app.post("${BASE_PATH}/admin/groups/upload-csv")
+@app.post("/admin/groups/upload-csv")
 async def upload_groups_csv(file: UploadFile = File(...), db: Session = Depends(get_db)):
     try:
         contents = await file.read()
@@ -1167,7 +1167,7 @@ async def upload_groups_csv(file: UploadFile = File(...), db: Session = Depends(
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Ошибка при обработке CSV: {str(e)}")
 
-@app.post("${BASE_PATH}/admin/bookings/{slot_id}/confirm")
+@app.post("/admin/bookings/{slot_id}/confirm")
 async def confirm_booking(slot_id: int, db: Session = Depends(get_db),
                           current_admin: Admin = Depends(get_current_admin_api)):
     booking = DatabaseService.confirm_booking(db, slot_id)
@@ -1175,7 +1175,7 @@ async def confirm_booking(slot_id: int, db: Session = Depends(get_db),
         raise HTTPException(status_code=404, detail="Бронирование не найдено")
     return {"message": "Бронирование подтверждено"}
 
-@app.post("${BASE_PATH}/admin/bookings/{slot_id}/cancel")
+@app.post("/admin/bookings/{slot_id}/cancel")
 async def cancel_booking(
     slot_id: int, 
     cancel_data: CancelBookingRequest,
@@ -1188,14 +1188,14 @@ async def cancel_booking(
     return {"message": "Бронирование отклонено, слот освобожден"}
 
 
-@app.post("${BASE_PATH}/admin/bookings/confirm-all")
+@app.post("/admin/bookings/confirm-all")
 async def confirm_all_bookings(db: Session = Depends(get_db),
                                current_admin: Admin = Depends(get_current_admin_api)):
     count = DatabaseService.confirm_all_bookings(db)
     return {"message": f"Все бронирования ({count}) подтверждены"}
 
 
-@app.get("${BASE_PATH}/admin/bookings/export-csv")
+@app.get("/admin/bookings/export-csv")
 async def export_bookings_csv(db: Session = Depends(get_db),
                               current_admin: Admin = Depends(get_current_admin_api)):
     try:

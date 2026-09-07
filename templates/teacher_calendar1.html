@@ -49,16 +49,16 @@
             <p class="text-gray-600">Выберите месяц, день или неделю для бронирования</p>
             <div class="flex items-center space-x-4">
                 {% if is_admin %}
-                    <a href="admin/dashboard" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors shadow-sm">
+                    <a href="{{ base_path }}/admin/dashboard" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors shadow-sm">
                         Панель администратора
                     </a>
-                    <a href="admin/logout" 
+                    <a href="{{ base_path }}/admin/logout" 
                        onclick="return confirm('Вы действительно хотите выйти из системы?');" 
                        class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-md text-sm font-medium transition-colors">
                         Выйти
                     </a>
                 {% else %}
-                    <a href="admin/login" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors shadow-sm">
+                    <a href="{{ base_path }}/admin/login" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors shadow-sm">
                         Вход для администратора
                     </a>
                 {% endif %}
@@ -693,8 +693,8 @@
 
     // Инициализация автодополнения при загрузке документа
         document.addEventListener('DOMContentLoaded', function() {
-            setupAutocomplete('full-name', 'teacher-suggestions', '/api/teachers/search', 'full_name');
-            setupAutocomplete('group', 'group-suggestions', '/api/groups/search', 'group_name');
+            setupAutocomplete('full-name', 'teacher-suggestions', `${BASE_PATH}/api/teachers/search`, 'full_name');
+            setupAutocomplete('group', 'group-suggestions', `${BASE_PATH}/api/groups/search`, 'group_name');
         });
     </script>
 </body>
