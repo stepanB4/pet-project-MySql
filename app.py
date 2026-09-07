@@ -25,7 +25,11 @@ from database import (
 
 import time
 
-app = FastAPI(title="Booking System")
+BASE_PATH = os.getenv("BASE_PATH", "").rstrip("/")
+
+app = FastAPI(title="Booking System", root_path=BASE_PATH)
+
+
 
 @app.on_event("startup")
 def startup_event():
@@ -136,20 +140,21 @@ def create_access_token(data: dict, expires_delta: timedelta = timedelta(hours=2
 # Зависимость для HTML-страниц (Редирект на логин при ошибке)
 def get_current_admin_html(request: Request, db: Session = Depends(get_db)):
     token = request.cookies.get(COOKIE_NAME)
+    login_url = f"{BASE_PATH}/admin/login"
     if not token:
-        raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": "/admin/login"})
+        raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": login_url})
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
         if username is None:
-            raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": "/admin/login"})
-        
+            raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": login_url})
+
         admin = db.query(Admin).filter(Admin.username == username).first()
         if admin is None:
-            raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": "/admin/login"})
+            raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": login_url})
         return admin
     except jwt.PyJWTError:
-        raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": "/admin/login"})
+        raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": login_url})
 
 # Зависимость для API-эндпоинтов (401 ошибка при ошибке)
 def get_current_admin_api(request: Request, db: Session = Depends(get_db)):
@@ -789,7 +794,7 @@ async def create_booking(booking: BookingCreate, db: Session = Depends(get_db)):
 
 @app.get("/admin/logout")
 async def admin_logout():
-    response = RedirectResponse(url="/admin/login", status_code=status.HTTP_302_FOUND)
+    response = RedirectResponse(url=f"{BASE_PATH}/admin/login", status_code=status.HTTP_302_FOUND)
     response.delete_cookie(key="admin_access_token", path="/")
     return response
 
@@ -821,7 +826,7 @@ async def admin_login(
         secure=False 
     )
 
-    return {"message": "Успешный вход", "redirect": "/admin/dashboard"}
+    return {"message": "Успешный вход", "redirect": f"{BASE_PATH}/admin/dashboard"}
 
 
 @app.get("/admin/dashboard", response_class=HTMLResponse)

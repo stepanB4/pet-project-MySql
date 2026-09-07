@@ -14,7 +14,7 @@
                 <h1 class="text-2xl font-bold text-gray-800">Панель администратора</h1>
 
                 <div class="flex items-center space-x-6">
-                    <a href="/" class="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors">
+                    <a href="{{ base_path }}" class="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors">
                         ← На главную
                     </a>
 
@@ -23,7 +23,7 @@
                             Администратор
                         </span>
 
-                        <a href="/admin/logout"
+                        <a href="{{ base_path }}/admin/logout"
                            onclick="return confirm('Вы действительно хотите выйти из панели управления?');"
                            class="text-sm font-semibold text-red-600 hover:text-red-800 transition-colors">
                            Выйти
@@ -276,7 +276,7 @@ date,lesson_number,classroom,building
                     <div>
                         <div class="flex justify-between items-center mb-4 pb-2 border-b">
                             <h3 class="font-semibold text-lg">Преподаватели</h3>
-                            <a href="/admin/teachers/export-csv" class="bg-gray-200 hover:bg-gray-300 text-gray-800 text-xs px-2.5 py-1.5 rounded font-medium transition-colors">
+                            <a href="{{ base_path }}/admin/teachers/export-csv" class="bg-gray-200 hover:bg-gray-300 text-gray-800 text-xs px-2.5 py-1.5 rounded font-medium transition-colors">
                                 Скачать текущий CSV
                             </a>
                         </div>
@@ -338,7 +338,7 @@ date,lesson_number,classroom,building
                     <div>
                         <div class="flex justify-between items-center mb-4 pb-2 border-b">
                             <h3 class="font-semibold text-lg">Группы</h3>
-                            <a href="/admin/groups/export-csv" class="bg-gray-200 hover:bg-gray-300 text-gray-800 text-xs px-2.5 py-1.5 rounded font-medium transition-colors">
+                            <a href="{{ base_path }}/admin/groups/export-csv" class="bg-gray-200 hover:bg-gray-300 text-gray-800 text-xs px-2.5 py-1.5 rounded font-medium transition-colors">
                                 Скачать текущий CSV
                             </a>
                         </div>
@@ -401,6 +401,7 @@ date,lesson_number,classroom,building
     </div>
 
     <script>
+        const BASE_PATH = "{{ base_path }}";
         // Обновленная функция навигации по секциям
         function showSection(sectionName) {
             // Скрываем все секции
@@ -434,7 +435,7 @@ date,lesson_number,classroom,building
             e.preventDefault();
             const input = document.getElementById('teacher-fullname-input');
             try {
-                const response = await fetch('/admin/teachers/add', {
+                const response = await fetch(`${BASE_PATH}/admin/teachers/add`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ full_name: input.value.trim() })
@@ -461,7 +462,7 @@ date,lesson_number,classroom,building
                 button.textContent = 'Загрузка...';
                 button.disabled = true;
                 
-                const response = await fetch('/admin/teachers/upload-csv', { method: 'POST', body: formData });
+                const response = await fetch(`${BASE_PATH}/admin/teachers/upload-csv`, { method: 'POST', body: formData });
                 const data = await response.json();
                 
                 if (response.ok) {
@@ -484,7 +485,7 @@ date,lesson_number,classroom,building
             e.preventDefault();
             const input = document.getElementById('group-name-input');
             try {
-                const response = await fetch('/admin/groups/add', {
+                const response = await fetch(`${BASE_PATH}/admin/groups/add`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ group_name: input.value.trim() })
@@ -511,7 +512,7 @@ date,lesson_number,classroom,building
                 button.textContent = 'Загрузка...';
                 button.disabled = true;
                 
-                const response = await fetch('/admin/groups/upload-csv', { method: 'POST', body: formData });
+                const response = await fetch(`${BASE_PATH}/admin/groups/upload-csv`, { method: 'POST', body: formData });
                 const data = await response.json();
                 
                 if (response.ok) {
@@ -532,7 +533,7 @@ date,lesson_number,classroom,building
         // Подтверждение бронирования
         async function confirmBooking(bookingId) {
             try {
-                const response = await fetch(`/admin/bookings/${bookingId}/confirm`, { method: 'POST' });
+                const response = await fetch(`${BASE_PATH}/admin/bookings/${bookingId}/confirm`, { method: 'POST' });
                 if (response.ok) {
                     alert('Бронирование подтверждено');
                     location.reload();
@@ -548,7 +549,7 @@ date,lesson_number,classroom,building
         async function confirmAllBookings() {
             if (!confirm('Подтвердить все бронирования?')) return;
             try {
-                const response = await fetch('/admin/bookings/confirm-all', { method: 'POST' });
+                const response = await fetch(`${BASE_PATH}/admin/bookings/confirm-all`, { method: 'POST' });
                 if (response.ok) {
                     alert('Все бронирования подтверждены');
                     location.reload();
@@ -563,7 +564,7 @@ date,lesson_number,classroom,building
         // Экспорт в CSV
         async function exportToCSV() {
             try {
-                const response = await fetch('/admin/bookings/export-csv');
+                const response = await fetch(`${BASE_PATH}/admin/bookings/export-csv`);
                 if (!response.ok) throw new Error(`Ошибка сервера: ${response.status}`);
                 const blob = await response.blob();
                 const url = window.URL.createObjectURL(blob);
@@ -591,7 +592,7 @@ date,lesson_number,classroom,building
                 building: formData.get('building')
             };
             try {
-                const response = await fetch('/admin/slots/', {
+                const response = await fetch(`${BASE_PATH}/admin/slots/`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(slotData)
@@ -624,7 +625,7 @@ date,lesson_number,classroom,building
                 const originalText = button.textContent;
                 button.textContent = 'Загрузка...';
                 button.disabled = true;
-                const response = await fetch('/admin/slots/upload-csv', { method: 'POST', body: formData });
+                const response = await fetch(`${BASE_PATH}/admin/slots/upload-csv`, { method: 'POST', body: formData });
                 const responseText = await response.text();
                 let result;
                 try { result = JSON.parse(responseText); } catch(e) { throw new Error(`Сервер вернул некорректный ответ. Статус: ${response.status}`); }
@@ -649,7 +650,7 @@ date,lesson_number,classroom,building
         async function deleteSlot(slotId) {
             if (!confirm('Удалить этот слот?')) return;
             try {
-                const response = await fetch(`/admin/slots/${slotId}`, { method: 'DELETE' });
+                const response = await fetch(`${BASE_PATH}/admin/slots/${slotId}`, { method: 'DELETE' });
                 if (response.ok) {
                     alert('Слот удален');
                     location.reload();
@@ -670,7 +671,7 @@ date,lesson_number,classroom,building
             formData.append('file', blob, 'test.csv');
             try {
                 console.log('Отправка тестового запроса...');
-                const response = await fetch('/admin/slots/upload-csv', { method: 'POST', body: formData });
+                const response = await fetch(`${BASE_PATH}/admin/slots/upload-csv`, { method: 'POST', body: formData });
                 console.log('Статус:', response.status);
                 const text = await response.text();
                 console.log('Ответ:', text);
@@ -685,7 +686,7 @@ date,lesson_number,classroom,building
         document.getElementById('delete-all-slots').addEventListener('click', async () => {
             if (!confirm('⚠ВНИМАНИЕ! Вы собираетесь удалить ВСЕ слоты. Это действие необратимо. Продолжить?')) return;
             try {
-                const response = await fetch('/admin/slots/delete-all', { method: 'DELETE' });
+                const response = await fetch(`${BASE_PATH}/admin/slots/delete-all`, { method: 'DELETE' });
                 if (response.ok) {
                     alert('Все слоты удалены');
                     location.reload();
@@ -705,7 +706,7 @@ date,lesson_number,classroom,building
             if(!confirm(`Вы уверены, что хотите удалить преподавателя "${input.value.trim()}"?`)) return;
             
             try {
-                const response = await fetch('/admin/teachers/delete', {
+                const response = await fetch(`${BASE_PATH}/admin/teachers/delete`, {
                     method: 'DELETE',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ full_name: input.value.trim() })
@@ -727,7 +728,7 @@ date,lesson_number,classroom,building
             if(!confirm(`Вы уверены, что хотите удалить группу "${input.value.trim()}"?`)) return;
             
             try {
-                const response = await fetch('/admin/groups/delete', {
+                const response = await fetch(`${BASE_PATH}/admin/groups/delete`, {
                     method: 'DELETE',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ group_name: input.value.trim() })
@@ -752,7 +753,7 @@ date,lesson_number,classroom,building
             formData.append('file', fileInput.files[0]);
             
             try {
-                const response = await fetch('/admin/teachers/delete-csv', { method: 'POST', body: formData });
+                const response = await fetch(`${BASE_PATH}/admin/teachers/delete-csv`, { method: 'POST', body: formData });
                 const data = await response.json();
                 if (response.ok) {
                     alert(data.message);
@@ -773,7 +774,7 @@ date,lesson_number,classroom,building
             formData.append('file', fileInput.files[0]);
             
             try {
-                const response = await fetch('/admin/groups/delete-csv', { method: 'POST', body: formData });
+                const response = await fetch(`${BASE_PATH}/admin/groups/delete-csv`, { method: 'POST', body: formData });
                 const data = await response.json();
                 if (response.ok) {
                     alert(data.message);
@@ -795,7 +796,7 @@ date,lesson_number,classroom,building
             const finalMessage = reason.trim();
 
             try {
-                const response = await fetch(`/admin/bookings/${slotId}/cancel`, {
+                const response = await fetch(`${BASE_PATH}/admin/bookings/${slotId}/cancel`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

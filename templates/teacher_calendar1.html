@@ -49,16 +49,16 @@
             <p class="text-gray-600">Выберите месяц, день или неделю для бронирования</p>
             <div class="flex items-center space-x-4">
                 {% if is_admin %}
-                    <a href="/admin/dashboard" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors shadow-sm">
+                    <a href="admin/dashboard" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors shadow-sm">
                         Панель администратора
                     </a>
-                    <a href="/admin/logout" 
+                    <a href="admin/logout" 
                        onclick="return confirm('Вы действительно хотите выйти из системы?');" 
                        class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-md text-sm font-medium transition-colors">
                         Выйти
                     </a>
                 {% else %}
-                    <a href="/admin/login" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors shadow-sm">
+                    <a href="admin/login" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors shadow-sm">
                         Вход для администратора
                     </a>
                 {% endif %}
@@ -251,6 +251,7 @@
     </div>
 
     <script>
+        const BASE_PATH = "{{ base_path }}";
         // Текущие данные
         let currentDate = new Date('{{ today }}');
         let currentCalendar = {{ calendar|tojson }};
@@ -302,7 +303,7 @@
 
         async function loadCalendar() {
             try {
-                const response = await fetch(`/api/calendar/${currentYear}/${currentMonth}`);
+                const response = await fetch(`${BASE_PATH}/api/calendar/${currentYear}/${currentMonth}`);
                 const data = await response.json();
 
                 currentCalendar = data.calendar;
@@ -370,7 +371,7 @@
         }
 
         async function updateMonthInfo() {
-             const response = await fetch(`/api/slots/month/${currentYear}/${currentMonth}`);
+             const response = await fetch(`${BASE_PATH}/api/slots/month/${currentYear}/${currentMonth}`);
              const monthData = await response.json();
 
              const totalSlots = monthData.total_slots || 0;
@@ -438,7 +439,7 @@
             `;
 
             try {
-                const response = await fetch(`/api/slots/date/${dateString}`);
+                const response = await fetch(`${BASE_PATH}/api/slots/date/${dateString}`);
                 const slots = await response.json();
 
                 if (slots.length === 0) {
@@ -488,7 +489,7 @@
             `;
 
             try {
-                const response = await fetch(`/api/slots/week/${startDateString}`);
+                const response = await fetch(`${BASE_PATH}/api/slots/week/${startDateString}`);
                 const weekData = await response.json();
 
                 let html = '';
@@ -600,7 +601,7 @@
             };
 
             try {
-                const response = await fetch('/api/bookings/', {
+                const response = await fetch(`${BASE_PATH}/api/bookings/`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

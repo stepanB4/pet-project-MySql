@@ -36,7 +36,7 @@
             </div>
 
             <div class="text-center">
-                <a href="/" class="text-blue-600 hover:text-blue-500 text-sm">
+                <a href="{{ base_path }}" class="text-blue-600 hover:text-blue-500 text-sm">
                     ← Вернуться к бронированию
                 </a>
             </div>
@@ -44,6 +44,8 @@
     </div>
 
     <script>
+        const BASE_PATH = "{{ base_path }}";
+        
         document.getElementById('login-form').addEventListener('submit', async function(e) {
             e.preventDefault();
 
@@ -55,7 +57,7 @@
             console.log("Отправка данных:", formData);
 
             try {
-                const response = await fetch('/admin/login', {
+                const response = await fetch(`${BASE_PATH}/admin/login`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
