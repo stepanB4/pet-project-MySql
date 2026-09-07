@@ -25,7 +25,7 @@ from database import (
 
 import time
 
-app = FastAPI(title="Booking System", root_path="/booking")
+app = FastAPI(title="Booking System")
 
 @app.on_event("startup")
 def startup_event():
