@@ -34,7 +34,7 @@ app = FastAPI(title="Booking System", root_path=BASE_PATH)
 @app.on_event("startup")
 def startup_event():
     """Ожидание готовности базы данных перед созданием таблиц"""
-    max_retries = 10
+    max_retries = 2
     for i in range(max_retries):
         try:
             print(f"🔄 Попытка подключения к БД ({i+1}/{max_retries})...")
@@ -634,7 +634,7 @@ class DatabaseService:
         return slot
 
 
-@app.get("/", response_class=HTMLResponse)
+@app.get("${BASE_PATH}", response_class=HTMLResponse)
 async def teacher_calendar(request: Request, db: Session = Depends(get_db)):
 
     today = date.today()
@@ -671,7 +671,7 @@ async def teacher_calendar(request: Request, db: Session = Depends(get_db)):
     })
 
 
-@app.get("/api/calendar/{year}/{month}")
+@app.get("${BASE_PATH}/api/calendar/{year}/{month}")
 async def get_calendar(year: int, month: int, db: Session = Depends(get_db)):
     month_calendar = get_month_calendar(year, month)
     month_slots = DatabaseService.get_available_slots_by_month(db, year, month)
@@ -690,7 +690,7 @@ async def get_calendar(year: int, month: int, db: Session = Depends(get_db)):
     }
 
 
-@app.get("/api/slots/month/{year}/{month}")
+@app.get("${BASE_PATH}/api/slots/month/{year}/{month}")
 async def get_month_slots_summary(year: int, month: int, db: Session = Depends(get_db)):
     slots = DatabaseService.get_available_slots_by_month(db, year, month)
 
@@ -704,7 +704,7 @@ async def get_month_slots_summary(year: int, month: int, db: Session = Depends(g
     }
 
 
-@app.get("/api/slots/date/{slot_date}")
+@app.get("${BASE_PATH}/api/slots/date/{slot_date}")
 async def get_slots_by_date(slot_date: date, db: Session = Depends(get_db)):
     slots = DatabaseService.get_available_slots_by_date(db, slot_date)
     result = []
@@ -724,7 +724,7 @@ async def get_slots_by_date(slot_date: date, db: Session = Depends(get_db)):
     return result
 
 
-@app.get("/api/slots/week/{start_date}")
+@app.get("${BASE_PATH}/api/slots/week/{start_date}")
 async def get_slots_by_week(start_date: date, db: Session = Depends(get_db)):
     slots = DatabaseService.get_available_slots_by_week(db, start_date)
 
@@ -753,7 +753,7 @@ async def get_slots_by_week(start_date: date, db: Session = Depends(get_db)):
         "slots": week_slots
     }
 
-@app.get("/api/teachers/search")
+@app.get("${BASE_PATH}/api/teachers/search")
 async def search_teachers(q: str = "", db: Session = Depends(get_db)):
     if not q:
         return []
@@ -761,14 +761,14 @@ async def search_teachers(q: str = "", db: Session = Depends(get_db)):
     teachers = db.query(Teacher).filter(Teacher.full_name.ilike(f"%{q}%")).limit(10).all()
     return [{"id": t.id, "full_name": t.full_name} for t in teachers]
 
-@app.get("/api/groups/search")
+@app.get("${BASE_PATH}/api/groups/search")
 async def search_groups(q: str = "", db: Session = Depends(get_db)):
     if not q:
         return []
     groups = db.query(Group).filter(Group.group_name.ilike(f"%{q}%")).limit(10).all()
     return [{"id": g.id, "group_name": g.group_name} for g in groups]
 
-@app.post("/api/bookings/")
+@app.post("${BASE_PATH}/api/bookings/")
 async def create_booking(booking: BookingCreate, db: Session = Depends(get_db)):
     slot = DatabaseService.get_slot_by_id(db, booking.slot_id)
     if not slot or slot.is_booked:
@@ -795,7 +795,7 @@ async def create_booking(booking: BookingCreate, db: Session = Depends(get_db)):
 @app.get("${BASE_PATH}/admin/logout")
 async def admin_logout():
     response = RedirectResponse(url=f"{BASE_PATH}/admin/login", status_code=status.HTTP_302_FOUND)
-    response.delete_cookie(key="admin_access_token", path="/")
+    response.delete_cookie(key="admin_access_token", path="${BASE_PATH}")
     return response
 
 # Роуты для администратора
